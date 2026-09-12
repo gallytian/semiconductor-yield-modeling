@@ -1,0 +1,28 @@
+{
+ "surrogate_r2": 0.623,
+ "bounds": {
+  "critical_dimension": [
+   17.226,
+   31.991
+  ],
+  "oxide_thickness": [
+   39.889,
+   74.08
+  ],
+  "vth": [
+   0.451,
+   0.838
+  ]
+ },
+ "current_yield": 0.457,
+ "lhs_best": 0.703,
+ "random_best": 0.7,
+ "bo_best": 0.702,
+ "bo_best_params": {
+  "critical_dimension": 17.8,
+  "oxide_thickness": 63.732,
+  "vth": 0.452
+ },
+ "bo_iters": 38,
+ "efficiency": 24.0
+}

@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>半导体晶圆良率数据 · 数据分析报告</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+<style>
+  :root {
+    --ink:#2B2D2E; --sub:#6B7280; --line:#E3E1DA; --bg:#F6F5F1; --card:#FFFFFF;
+    --blue:#3B6EA5; --blue-d:#2E5E8C; --amber:#C98A2D; --pass:#4C956C; --fail:#B23A48;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--ink);
+         font:15px/1.7 'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif; }
+  .wrap { max-width:1100px; margin:0 auto; padding:32px 20px 64px; }
+  header { border-bottom:3px double var(--blue); padding-bottom:18px; margin-bottom:26px; }
+  header h1 { font:700 26px/1.4 Georgia,'Songti SC','SimSun',serif; color:var(--blue-d); }
+  header .sub { color:var(--sub); font-size:13px; margin-top:8px; }
+  h2 { font:600 19px/1.4 Georgia,'Songti SC','SimSun',serif; color:var(--blue-d);
+        margin:40px 0 6px; padding-left:10px; border-left:4px solid var(--blue); }
+  p.body { margin:10px 0; font-size:14px; color:#3A3D40; }
+  .kpis { display:flex; flex-wrap:wrap; gap:14px; margin:16px 0 6px; }
+  .kpi { flex:1 1 160px; background:var(--card); border:1px solid var(--line);
+          border-radius:8px; padding:14px 16px; }
+  .kpi .v { font:700 24px/1.2 Georgia,serif; color:var(--blue-d); }
+  .kpi .k { font-size:12px; color:var(--sub); margin-top:4px; }
+  .chart { background:var(--card); border:1px solid var(--line); border-radius:8px;
+            padding:14px; margin:14px 0; }
+  .chart .cap { font-size:12px; color:var(--sub); margin-top:8px; line-height:1.6; }
+  table { border-collapse:collapse; width:100%; background:var(--card); font-size:13px; }
+  th,td { border:1px solid var(--line); padding:7px 10px; text-align:left; vertical-align:top; }
+  th { background:#F0EEE7; font-weight:600; }
+  .note { background:#FBF7EE; border:1px solid #EDE3CC; border-radius:8px;
+           padding:12px 16px; font-size:13px; color:#7A6A45; margin:16px 0; }
+  .ref { background:#F0F4FA; border:1px solid #D5E0EE; border-radius:8px;
+          padding:12px 16px; font-size:13px; color:#3D5875; margin:16px 0; }
+  footer { margin-top:44px; padding-top:14px; border-top:1px solid var(--line);
+            font-size:12px; color:var(--sub); }
+  .two { display:flex; gap:14px; flex-wrap:wrap; }
+  .two > div { flex:1 1 46%; min-width:300px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>半导体晶圆良率数据 · 数据分析报告</h1>
+  <div class="sub">良率回归 · 工艺参数根因 · SPC 过程控制 · 机台/节点对比</div>
+</header>
+
+<section>
+  <h2>摘要</h2>
+  <div class="kpis">
+    <div class="kpi"><div class="v">1250</div><div class="k">晶圆（行）</div></div>
+    <div class="kpi"><div class="v">50 × 25</div><div class="k">批次 × 晶圆/批</div></div>
+    <div class="kpi"><div class="v">45.7%</div><div class="k">平均良率</div></div>
+    <div class="kpi"><div class="v">15% ~ 98%</div><div class="k">良率范围</div></div>
+    <div class="kpi"><div class="v">0</div><div class="k">缺失值</div></div>
+  </div>
+  <p class="body"><b>核心发现：</b>① 关键尺寸（critical_dimension）是良率主导因素（r=-0.65、特征重要性 ~64%）；② 14nm 节点全产品线良率系统性偏低（&lt;37%），指向节点级工艺问题；③ 22nm 氧化层厚度 SPC 超限率最高；④ 机台方差（而非均值）是主要风险信号。</p>
+</section>
+
+<section>
+  <h2>一、数据源与背景</h2>
+  <table>
+    <tr><th style="width:140px;">项目</th><th>内容</th></tr>
+    <tr><td>数据集名称</td><td>Semiconductor Yield（Semiconductor Wafer Yield and Process Parameter Dataset）</td></tr>
+    <tr><td>来源</td><td>Kaggle（ayyappanmarimuthu/semiconductor-yield，2026 年发布）</td></tr>
+    <tr><td>数据形态</td><td>1250 片晶圆 × 28 列（批次/机台上下文 + 18 个工艺与电测参数 + 良率）</td></tr>
+    <tr><td>工艺覆盖</td><td>蚀刻（Etch）、光刻（Lithography）、沉积（Deposition）、离子注入（Implant）四大工序</td></tr>
+    <tr><td>技术节点</td><td>7nm / 10nm / 14nm / 22nm / 28nm 五节点</td></tr>
+    <tr><td>产品类型</td><td>ASIC / CPU / FPGA / GPU / Memory</td></tr>
+    <tr><td>时间范围</td><td>2023-01-01 ~ 2023-02-19（50 天，50 批次）</td></tr>
+    <tr><td>缺失值</td><td>0（数据干净）</td></tr>
+    <tr><td>目标变量</td><td>yield（晶圆良率，0~1 连续值，均值 0.457）</td></tr>
+  </table>
+  <div class="ref"><b>数据性质说明：</b>该数据集为 Kaggle 上用于分析练习的<b>合成数据</b>——工艺参数名、机台编号、列结构与流程约定均参考真实半导体制造实践，但数值为模拟生成（参数-良率关系比真实产线更"理想化"）。适合方法学演示与流程训练；面试展示时需如实说明这一点。</div>
+  <p class="body"><b>业务背景：</b>半导体制造中，晶圆良率（单片晶圆上合格芯片占比）直接决定产品线商业价值。良率损失来自设备健康、工艺参数漂移、产品-节点匹配的复杂交互。本报告复现真实 Fab 良率调查的分析流程：设备性能对标 → SPC 过程控制 → 参数-良率相关 → 低良率批次根因排查。</p>
+</section>
+
+<section>
+  <h2>二、变量解读</h2>
+  <table>
+    <tr><th>分组</th><th>变量</th><th>含义</th></tr>
+    <tr><td><b>批次上下文</b></td><td>lot_id / wafer_id</td><td>批次号 / 晶圆号（50 批次 × 25 片/批）</td></tr>
+    <tr><td><b>产品上下文</b></td><td>product_type</td><td>ASIC / CPU / FPGA / GPU / Memory</td></tr>
+    <tr><td><b>节点</b></td><td>technology_node</td><td>7/10/14/22/28nm——工艺复杂度与良率基线不同</td></tr>
+    <tr><td><b>时间</b></td><td>process_date</td><td>加工日期（2023-01-01 ~ 02-19）</td></tr>
+    <tr><td><b>机台</b></td><td>etch/litho/deposition/implant_tool</td><td>四道工序各自的设备编号（设备健康影响良率）</td></tr>
+    <tr><td><b>蚀刻参数</b></td><td>etch_rate / pressure / temperature</td><td>蚀刻速率、腔室压力、温度</td></tr>
+    <tr><td><b>光刻参数</b></td><td>exposure_time / focus_offset / dose</td><td>曝光时间、焦距偏移、光刻剂量</td></tr>
+    <tr><td><b>沉积参数</b></td><td>deposition_rate / thickness_uniformity</td><td>沉积速率、膜厚均匀性</td></tr>
+    <tr><td><b>注入参数</b></td><td>implant_energy / tilt_angle</td><td>注入能量、倾斜角</td></tr>
+    <tr><td><b>量测/电测</b></td><td>critical_dimension / oxide_thickness / resistivity / vth / leakage_current / resistance</td><td>关键尺寸（CD）、氧化层厚度、电阻率、阈值电压、漏电流、电阻</td></tr>
+    <tr><td><b>缺陷</b></td><td>defect_count / defect_density</td><td>缺陷计数与密度（良率杀手）</td></tr>
+    <tr><td><b>目标</b></td><td><b>yield</b></td><td>晶圆良率（0.148~0.982），本报告预测目标</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>三、时间分析</h2>
+  <div class="chart">
+    <div id="c_time" style="width:100%;height:320px;"></div>
+    <div class="cap">按周：批次量与平均良率。50 天内批次节奏均匀，良率周间波动（无强趋势）——短期数据不足以做长期漂移分析，但可作为基线。</div>
+  </div>
+</section>
+
+<section>
+  <h2>四、良率分布：节点 × 产品</h2>
+  <div class="two">
+    <div class="chart">
+      <div id="c_np" style="width:100%;height:340px;"></div>
+      <div class="cap">节点 × 产品平均良率热图（空格 = 该节点不生产该产品，反映真实机台资格约束）：<b>10nm 表现最好（CPU/GPU 0.62）</b>，22nm 最差（GPU 0.315），14nm 全产品线系统性偏低。</div>
+    </div>
+    <div class="chart">
+      <div id="c_grp" style="width:100%;height:340px;"></div>
+      <div class="cap">良率分组：Low&lt;35% 占 396 片（30%）、Mid 437 片、High≥50% 417 片（46%）。</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>五、参数-良率相关性（根因线索）</h2>
+  <div class="chart">
+    <div id="c_corr" style="width:100%;height:420px;"></div>
+    <div class="cap">18 个工艺/电测参数与良率的 Pearson 相关：<b>critical_dimension（r=-0.653)</b>、vth（r=-0.541）、oxide_thickness（r=-0.507）为最强负相关——参数越大良率越低。</div>
+  </div>
+</section>
+
+<section>
+  <h2>六、SPC 过程控制视角</h2>
+  <div class="chart">
+    <div style="overflow-x:auto;">
+    <table>
+      <tr><th>参数</th><th>节点</th><th>OOC（&gt;3σ）</th><th>Warning（2~3σ）</th><th>样本数</th></tr>
+      <tr><td>critical_dimension</td><td>10nm</td><td>2</td><td>11</td><td>375</td></tr><tr><td>vth</td><td>14nm</td><td>2</td><td>7</td><td>250</td></tr><tr><td>etch_rate</td><td>10nm</td><td>2</td><td>16</td><td>375</td></tr><tr><td>critical_dimension</td><td>28nm</td><td>1</td><td>12</td><td>300</td></tr><tr><td>oxide_thickness</td><td>22nm</td><td>1</td><td>3</td><td>125</td></tr><tr><td>oxide_thickness</td><td>28nm</td><td>1</td><td>12</td><td>300</td></tr><tr><td>vth</td><td>10nm</td><td>1</td><td>19</td><td>375</td></tr><tr><td>etch_rate</td><td>14nm</td><td>1</td><td>9</td><td>250</td></tr><tr><td>etch_rate</td><td>28nm</td><td>1</td><td>11</td><td>300</td></tr><tr><td>etch_rate</td><td>7nm</td><td>1</td><td>6</td><td>200</td></tr><tr><td>deposition_rate</td><td>7nm</td><td>1</td><td>7</td><td>200</td></tr><tr><td>critical_dimension</td><td>14nm</td><td>0</td><td>14</td><td>250</td></tr><tr><td>critical_dimension</td><td>22nm</td><td>0</td><td>5</td><td>125</td></tr><tr><td>critical_dimension</td><td>7nm</td><td>0</td><td>8</td><td>200</td></tr><tr><td>oxide_thickness</td><td>10nm</td><td>0</td><td>18</td><td>375</td></tr>
+    </table>
+    </div>
+    <div class="cap">按节点计算各参数 ±3σ 控制限并标记超限批次。OOC 样本是工艺异常的候选根因批次——真实产线中 OOC 事件通常对应 5~15% 良率损失（此合成数据相关性偏弱）。</div>
+  </div>
+</section>
+
+<section>
+  <h2>七、机台良率对比</h2>
+  <div class="chart">
+    <div id="c_tool" style="width:100%;height:360px;"></div>
+    <div class="cap">各工序机台平均良率（误差棒 = 机台间 std）：机台间差异存在但有限——<b>方差（稳定性）而非均值是主要风险信号</b>，均值达标但方差大的机台应优先检修。</div>
+  </div>
+</section>
+
+<section>
+  <h2>八、根因量化：随机森林特征重要性</h2>
+  <div class="chart">
+    <div id="c_imp" style="width:100%;height:420px;"></div>
+    <div class="cap">RF 回归特征重要性（训练 R²=0.86）：<b>critical_dimension 独占 64.4%</b>，远高于第二名（vth 9.9%）——与相关性分析互相印证，证据链闭合。</div>
+  </div>
+  <div class="note">
+    低良率组（&lt;35%）vs 高良率组（≥50%）关键参数对比（均值）：<br>
+    critical_dimension：低组 27.751 vs 高组 20.917（约 5nm 系统偏差）｜
+    vth：0.679 vs 0.596｜
+    oxide_thickness：59.793 vs 53.865。
+  </div>
+</section>
+
+<section>
+  <h2>九、业务结论与建议</h2>
+  <div class="note">
+    ① <b>CD 控制是首要良率杠杆</b>：critical_dimension 相关性（r=-0.65）+ 特征重要性（64.4%）+ 分组差异（5nm 偏移）三方法互证 → 优先收紧光刻 CD 规格与在线量测监控；<br>
+    ② <b>14nm 节点级问题</b>：全产品线良率 &lt;37% → 排查配方/工艺条件而非单台设备；<br>
+    ③ <b>SPC 联动</b>：22nm oxide_thickness OOC 率最高 → 建立自动 Hold 触发；OOC 批次应与设备维护日志交叉排查；<br>
+    ④ <b>机台稳定性监控</b>：方差超标的 Watch 机台提前安排保养，防劣化为故障机台；<br>
+    ⑤ <b>建模落地</b>：yield 回归（R²≈0.6）+ 低良率分类（Top-k 拦截），可对接 DOE/贝叶斯优化寻优 CD 工艺窗口（与 smart-process-optimizer 项目闭环）。
+  </div>
+</section>
+
+<footer>
+  数据源：Kaggle – Semiconductor Yield（ayyappanmarimuthu/semiconductor-yield）｜合成数据（结构参考真实半导体制造实践）｜
+  本报告数值直接计算自 data/semiconductor_yield_forecasting_data.csv。
+</footer>
+</div>
+
+<script>
+(function(){
+  var hasE = (typeof echarts !== 'undefined');
+  function mk(id, opt) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (!hasE) {
+      el.innerHTML = '<div style="padding:14px;color:#6B7280;font-size:13px;">图表库未加载（需联网），请查看表格与文字结论。</div>';
+      return;
+    }
+    var c = echarts.init(el);
+    c.setOption(opt);
+    window.addEventListener('resize', function() { c.resize(); });
+  }
+  var D = {"meta": {"n": 1250, "n_lot": 50, "n_wafer_per_lot": 25, "nodes": ["10nm", "14nm", "22nm", "28nm", "7nm"], "prods": ["ASIC", "CPU", "FPGA", "GPU", "Memory"], "time_min": "2023-01-01", "time_max": "2023-02-19", "yield_mean": 0.457, "yield_min": 0.148, "yield_max": 0.982, "nulls": 0}, "time": {"labels": ["W52", "W1", "W2", "W3", "W4", "W5", "W6", "W7"], "batch": [25, 175, 175, 175, 175, 175, 175, 175], "yield": [69.4, 44.3, 42.7, 43.9, 42.1, 48.5, 46.0, 48.9]}, "npp": {"nodes": ["10nm", "14nm", "22nm", "28nm", "7nm"], "prods": ["ASIC", "CPU", "FPGA", "GPU", "Memory"], "data": [[0.599, 0.618, 0.581, 0.616, 0.548], [0.332, 0.351, 0.335, 0.33, 0.374], [0.358, null, 0.352, 0.315, 0.323], [0.361, null, 0.331, 0.342, 0.35], [null, 0.56, 0.597, 0.58, null]]}, "corr": {"names": ["critical_dimension", "vth", "oxide_thickness", "resistance", "defect_count", "thickness_uniformity", "defect_density", "leakage_current", "deposition_rate", "etch_rate", "temperature", "pressure", "exposure_time", "tilt_angle", "resistivity", "implant_energy", "dose", "focus_offset"], "vals": [-0.653, -0.541, -0.507, -0.202, -0.123, -0.123, -0.119, -0.047, -0.015, -0.006, -0.005, -0.003, -0.001, 0.003, 0.018, 0.024, 0.057, 0.072]}, "spc": {"params": ["critical_dimension", "oxide_thickness", "vth", "etch_rate", "deposition_rate"], "rows": [{"param": "critical_dimension", "node": "10nm", "ooc": 2, "warn": 11, "n": 375}, {"param": "critical_dimension", "node": "14nm", "ooc": 0, "warn": 14, "n": 250}, {"param": "critical_dimension", "node": "22nm", "ooc": 0, "warn": 5, "n": 125}, {"param": "critical_dimension", "node": "28nm", "ooc": 1, "warn": 12, "n": 300}, {"param": "critical_dimension", "node": "7nm", "ooc": 0, "warn": 8, "n": 200}, {"param": "oxide_thickness", "node": "10nm", "ooc": 0, "warn": 18, "n": 375}, {"param": "oxide_thickness", "node": "14nm", "ooc": 0, "warn": 10, "n": 250}, {"param": "oxide_thickness", "node": "22nm", "ooc": 1, "warn": 3, "n": 125}, {"param": "oxide_thickness", "node": "28nm", "ooc": 1, "warn": 12, "n": 300}, {"param": "oxide_thickness", "node": "7nm", "ooc": 0, "warn": 5, "n": 200}, {"param": "vth", "node": "10nm", "ooc": 1, "warn": 19, "n": 375}, {"param": "vth", "node": "14nm", "ooc": 2, "warn": 7, "n": 250}, {"param": "vth", "node": "22nm", "ooc": 0, "warn": 10, "n": 125}, {"param": "vth", "node": "28nm", "ooc": 0, "warn": 14, "n": 300}, {"param": "vth", "node": "7nm", "ooc": 0, "warn": 6, "n": 200}, {"param": "etch_rate", "node": "10nm", "ooc": 2, "warn": 16, "n": 375}, {"param": "etch_rate", "node": "14nm", "ooc": 1, "warn": 9, "n": 250}, {"param": "etch_rate", "node": "22nm", "ooc": 0, "warn": 3, "n": 125}, {"param": "etch_rate", "node": "28nm", "ooc": 1, "warn": 11, "n": 300}, {"param": "etch_rate", "node": "7nm", "ooc": 1, "warn": 6, "n": 200}, {"param": "deposition_rate", "node": "10nm", "ooc": 0, "warn": 17, "n": 375}, {"param": "deposition_rate", "node": "14nm", "ooc": 0, "warn": 7, "n": 250}, {"param": "deposition_rate", "node": "22nm", "ooc": 0, "warn": 4, "n": 125}, {"param": "deposition_rate", "node": "28nm", "ooc": 0, "warn": 15, "n": 300}, {"param": "deposition_rate", "node": "7nm", "ooc": 1, "warn": 7, "n": 200}]}, "tools": {"rows": [{"tool": "ETCH_01", "step": "etch", "n": 225, "yield_mean": 0.51, "yield_std": 0.183}, {"tool": "ETCH_02", "step": "etch", "n": 300, "yield_mean": 0.429, "yield_std": 0.163}, {"tool": "ETCH_03", "step": "etch", "n": 225, "yield_mean": 0.507, "yield_std": 0.182}, {"tool": "ETCH_04", "step": "etch", "n": 300, "yield_mean": 0.424, "yield_std": 0.171}, {"tool": "ETCH_05", "step": "etch", "n": 200, "yield_mean": 0.431, "yield_std": 0.157}, {"tool": "LITHO_01", "step": "litho", "n": 350, "yield_mean": 0.525, "yield_std": 0.185}, {"tool": "LITHO_02", "step": "litho", "n": 225, "yield_mean": 0.406, "yield_std": 0.166}, {"tool": "LITHO_03", "step": "litho", "n": 225, "yield_mean": 0.434, "yield_std": 0.167}, {"tool": "LITHO_04", "step": "litho", "n": 450, "yield_mean": 0.44, "yield_std": 0.161}, {"tool": "DEP_01", "step": "deposition", "n": 575, "yield_mean": 0.46, "yield_std": 0.17}, {"tool": "DEP_02", "step": "deposition", "n": 275, "yield_mean": 0.442, "yield_std": 0.177}, {"tool": "DEP_03", "step": "deposition", "n": 400, "yield_mean": 0.463, "yield_std": 0.182}, {"tool": "IMP_01", "step": "implant", "n": 550, "yield_mean": 0.443, "yield_std": 0.176}, {"tool": "IMP_02", "step": "implant", "n": 375, "yield_mean": 0.42, "yield_std": 0.162}, {"tool": "IMP_03", "step": "implant", "n": 325, "yield_mean": 0.523, "yield_std": 0.172}]}, "grp": {"counts": [396, 437, 417], "params": ["critical_dimension", "vth", "oxide_thickness", "defect_density", "etch_rate"], "means": {"Low<35%": {"critical_dimension": 27.751, "vth": 0.679, "oxide_thickness": 59.793, "defect_density": 0.976, "etch_rate": 3.609}, "Mid": {"critical_dimension": 25.283, "vth": 0.66, "oxide_thickness": 57.417, "defect_density": 0.964, "etch_rate": 3.616}, "High\u226550%": {"critical_dimension": 20.917, "vth": 0.596, "oxide_thickness": 53.865, "defect_density": 0.956, "etch_rate": 3.62}}}, "imp": {"names": ["critical_dimension", "vth", "defect_count", "thickness_uniformity", "oxide_thickness", "defect_density", "pressure", "dose", "temperature", "exposure_time", "tilt_angle", "implant_energy", "etch_rate", "resistivity", "deposition_rate", "focus_offset", "leakage_current", "resistance"], "vals": [64.4, 9.9, 3.6, 2.7, 2.7, 2.4, 1.5, 1.5, 1.3, 1.2, 1.2, 1.2, 1.1, 1.1, 1.1, 1.0, 1.0, 0.9], "r2": 0.86}};
+
+  mk('c_time', {
+    backgroundColor:'transparent',
+    title:{ text:'按周：批次量与平均良率', left:'center', textStyle:{fontSize:15,fontWeight:600,color:'#2B2D2E'} },
+    tooltip:{ trigger:'axis', triggerOn:'click', renderMode:'richText', confine:true },
+    legend:{ top:30, itemWidth:14, itemHeight:8, textStyle:{fontSize:11,color:'#6B7280'} },
+    grid:{ left:48, right:54, top:66, bottom:30, containLabel:true },
+    xAxis:{ type:'category', data:D.time.labels, axisLabel:{fontSize:11,color:'#555'} },
+    yAxis:[
+      { type:'value', name:'批次量', axisLabel:{fontSize:11,color:'#555'}, splitLine:{lineStyle:{color:'#EEE'}} },
+      { type:'value', name:'平均良率%', min:0, max:60, axisLabel:{fontSize:11,color:'#555'} }
+    ],
+    series:[
+      { name:'批次量', type:'bar', data:D.time.batch, barWidth:'46%', itemStyle:{color:'#3B6EA5'} },
+      { name:'平均良率%', type:'line', yAxisIndex:1, data:D.time.yield, smooth:true,
+         itemStyle:{color:'#C98A2D'}, lineStyle:{color:'#C98A2D',width:2} }
+    ]
+  });
+
+  mk('c_np', {
+    backgroundColor:'transparent',
+    title:{ text:'节点 × 产品平均良率（%）', left:'center', textStyle:{fontSize:15,fontWeight:600,color:'#2B2D2E'} },
+    tooltip:{ trigger:'item', triggerOn:'click', renderMode:'richText', confine:true,
+              formatter:function(p){ if(p.value==null) return p.name+'：不生产该组合'; return D.npp.nodes[p.value[0]]+' × '+D.npp.prods[p.value[1]]+'：'+(p.value[2]*100).toFixed(1)+'%'; } },
+    grid:{ left:70, right:60, top:44, bottom:70, containLabel:true },
+    xAxis:{ type:'category', data:D.npp.prods, axisLabel:{fontSize:11,color:'#555'} },
+    yAxis:{ type:'category', data:D.npp.nodes, axisLabel:{fontSize:11,color:'#555'} },
+    visualMap:{ min:0.25, max:0.65, calculable:false, orient:'horizontal', left:'center', bottom:0,
+                 textStyle:{fontSize:10,color:'#555'},
+                 inRange:{ color:['#B23A48','#F5E3C3','#4C956C'] } },
+    series:[{ type:'heatmap', data:(function(){
+      var d=[]; for(var i=0;i<D.npp.data.length;i++){
+        for(var j=0;j<D.npp.data[i].length;j++){
+          if(D.npp.data[i][j]!=null) d.push([j,i,D.npp.data[i][j]]);
+        }
+      } return d;
+    })(), label:{show:true,fontSize:9,color:'#333',formatter:function(p){ return (p.value[2]*100).toFixed(0)+'%'; }} }]
+  });
+
+  mk('c_grp', {
+    backgroundColor:'transparent',
+    title:{ text:'良率分组占比', left:'center', textStyle:{fontSize:15,fontWeight:600,color:'#2B2D2E'} },
+    tooltip:{ trigger:'item', triggerOn:'click', renderMode:'richText', confine:true,
+              formatter:function(p){ return p.name+'：'+p.value+' 片（'+p.percent+'%）'; } },
+    legend:{ bottom:0, itemWidth:14, itemHeight:8, textStyle:{fontSize:11,color:'#6B7280'} },
+    series:[{
+      name:'分组', type:'pie', radius:['40%','66%'], center:['50%','50%'],
+      label:{ formatter:'{b}\n{d}%', fontSize:12, color:'#2B2D2E' },
+      data:[
+        { value:D.grp.counts[0], name:'Low<35%', itemStyle:{color:'#B23A48'} },
+        { value:D.grp.counts[1], name:'Mid 35~50%', itemStyle:{color:'#C98A2D'} },
+        { value:D.grp.counts[2], name:'High≥50%', itemStyle:{color:'#4C956C'} }
+      ]
+    }]
+  });
+
+  mk('c_corr', {
+    backgroundColor:'transparent',
+    title:{ text:'18 参数与良率的 Pearson 相关', left:'center', textStyle:{fontSize:15,fontWeight:600,color:'#2B2D2E'} },
+    tooltip:{ trigger:'axis', triggerOn:'click', renderMode:'richText', confine:true,
+              formatter:function(p){ return p[0].name+'：r='+p[0].value; } },
+    grid:{ left:150, right:50, top:44, bottom:24, containLabel:true },
+    xAxis:{ type:'value', name:'r（负=参数越大良率越低）', min:-0.8, max:0.3,
+            axisLabel:{fontSize:11,color:'#555'} },
+    yAxis:{ type:'category', data:D.corr.names.slice().reverse(), axisLabel:{fontSize:11,color:'#555'} },
+    series:[{ type:'bar', data:D.corr.vals.slice().reverse(),
+              itemStyle:{color:function(p){ return p.value<0 ? '#B23A48' : '#3B6EA5'; }},
+              label:{show:true,position:'right',fontSize:10,color:'#555',formatter:function(p){return p.value;}} }]
+  });
+
+  mk('c_tool', {
+    backgroundColor:'transparent',
+    title:{ text:'机台良率对比（均值±机台std）', left:'center', textStyle:{fontSize:15,fontWeight:600,color:'#2B2D2E'} },
+    tooltip:{ trigger:'axis', triggerOn:'click', renderMode:'richText', confine:true },
+    legend:{ top:30, itemWidth:14, itemHeight:8, textStyle:{fontSize:11,color:'#6B7280'} },
+    grid:{ left:70, right:30, top:66, bottom:40, containLabel:true },
+    xAxis:{ type:'category', data:(function(){ var r=[]; for(var i=0;i<D.tools.rows.length;i++){r.push(D.tools.rows[i].tool);} return r; })(),
+            axisLabel:{fontSize:10,color:'#555',rotate:30} },
+    yAxis:{ type:'value', name:'平均良率', min:0.2, max:0.6, axisLabel:{fontSize:11,color:'#555'} },
+    series:[{ name:'平均良率', type:'bar', data:(function(){ var r=[]; for(var i=0;i<D.tools.rows.length;i++){r.push(D.tools.rows[i].yield_mean);} return r; })(),
+              itemStyle:{color:'#3B6EA5'},
+              label:{show:true,position:'top',fontSize:9,color:'#555',formatter:function(p){return p.value;}},
+              markLine:{ silent:true, data:[{ type:'average', name:'均值' }],
+                          lineStyle:{color:'#C98A2D',type:'dashed'},
+                          label:{formatter:'均值 {c}'} } }]
+  });
+
+  mk('c_imp', {
+    backgroundColor:'transparent',
+    title:{ text:'RF 回归特征重要性（%）', left:'center', textStyle:{fontSize:15,fontWeight:600,color:'#2B2D2E'} },
+    tooltip:{ trigger:'axis', triggerOn:'click', renderMode:'richText', confine:true,
+              formatter:function(p){ return p[0].name+'：'+p[0].value+'%'; } },
+    grid:{ left:150, right:50, top:44, bottom:24, containLabel:true },
+    xAxis:{ type:'value', name:'重要性 %', axisLabel:{fontSize:11,color:'#555'} },
+    yAxis:{ type:'category', data:D.imp.names.slice().reverse(), axisLabel:{fontSize:11,color:'#555'} },
+    series:[{ type:'bar', data:D.imp.vals.slice().reverse(),
+              itemStyle:{color:function(p){ return p.dataIndex===(D.imp.vals.length-1) ? '#B23A48' : '#3B6EA5'; }},
+              label:{show:true,position:'right',fontSize:10,color:'#555',formatter:function(p){return p.value+'%';}} }]
+  });
+})();
+</script>
+</body>
+</html>
