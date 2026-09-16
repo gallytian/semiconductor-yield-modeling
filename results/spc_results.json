@@ -1,0 +1,77 @@
+{
+  "capability": [
+    {
+      "param": "critical_dimension",
+      "Cp": 1.959740414947237,
+      "Cpk": 1.8829714464688676,
+      "Pp": 0.7852252178728513,
+      "Ppk": 0.7544655674928674,
+      "mu": 24.60826970810603,
+      "sigma_within": 1.7009055423409627,
+      "sigma_overall": 4.245066584034605,
+      "is_normal": false,
+      "p_value": 2.5637677254637745e-16,
+      "LSL": 15.0,
+      "USL": 35.0
+    },
+    {
+      "param": "oxide_thickness",
+      "Cp": 1.5551773123431094,
+      "Cpk": 1.4910376574213533,
+      "Pp": 0.8952330654519551,
+      "Ppk": 0.8583112691802989,
+      "mu": 56.98446670346933,
+      "sigma_within": 2.6792228986345963,
+      "sigma_overall": 4.654281468662175,
+      "is_normal": false,
+      "p_value": 2.480019564696978e-07,
+      "LSL": 45.0,
+      "USL": 70.0
+    },
+    {
+      "param": "vth",
+      "Cp": 0.8975681330275999,
+      "Cpk": 0.8652521199528423,
+      "Pp": 0.7396540673699896,
+      "Ppk": 0.7130235870394328,
+      "mu": 0.6445994050113357,
+      "sigma_within": 0.05570607752232056,
+      "sigma_overall": 0.06759916859213189,
+      "is_normal": true,
+      "p_value": 0.33292867309841623,
+      "LSL": 0.5,
+      "USL": 0.8
+    }
+  ],
+  "control_chart": [
+    {
+      "param": "critical_dimension",
+      "Xbar_bar": 24.608269708106025,
+      "R_bar": 6.686259686942324,
+      "n_ooc": 52,
+      "ooc_rate": 0.52
+    },
+    {
+      "param": "oxide_thickness",
+      "Xbar_bar": 56.98446670346932,
+      "R_bar": 10.532025214532599,
+      "n_ooc": 47,
+      "ooc_rate": 0.47
+    },
+    {
+      "param": "vth",
+      "Xbar_bar": 0.6445994050113357,
+      "R_bar": 0.21898059074024212,
+      "n_ooc": 29,
+      "ooc_rate": 0.29
+    }
+  ],
+  "ooc_analysis": {
+    "n_ooc_lots": 50,
+    "n_total_lots": 50,
+    "ooc_rate": 1.0,
+    "yield_ooc": 0.4566788954251226,
+    "yield_normal": null,
+    "yield_gap": null
+  }
+}

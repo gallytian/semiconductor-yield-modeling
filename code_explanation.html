@@ -1,0 +1,2073 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>半导体晶圆良率建模系统 - 代码详解</title>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        :root{--primary:#1e3a8a;--secondary:#3b82f6;--accent:#d4af37;--bg:#fff;--sidebar-bg:#f8fafc;--border:#e2e8f0;--text:#1e293b;--text-light:#64748b;--code-bg:#f1f5f9;--highlight:#fef3c7}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;line-height:1.6;color:var(--text);background:var(--bg)}
+        .container{display:flex;min-height:100vh}
+        .sidebar{width:300px;background:var(--sidebar-bg);border-right:1px solid var(--border);position:fixed;height:100vh;overflow-y:auto;padding:20px 0;z-index:10}
+        .sidebar-header{padding:0 20px 20px;border-bottom:2px solid var(--primary);margin-bottom:15px}
+        .sidebar-header h1{font-size:16px;color:var(--primary);font-weight:600}
+        .sidebar-header p{font-size:12px;color:var(--text-light);margin-top:5px}
+        .nav-section{margin-bottom:8px}
+        .nav-section-title{padding:8px 20px;font-size:13px;font-weight:600;color:var(--primary);cursor:pointer;display:flex;align-items:center;justify-content:space-between;transition:background .2s}
+        .nav-section-title:hover{background:rgba(30,58,138,.05)}
+        .nav-section-title.collapsed::after{content:"▶";font-size:10px}
+        .nav-section-title::after{content:"▼";font-size:10px}
+        .nav-items{list-style:none}
+        .nav-items.collapsed{display:none}
+        .nav-item{padding:6px 20px 6px 35px;font-size:12px;color:var(--text);cursor:pointer;border-left:3px solid transparent;transition:all .2s}
+        .nav-item:hover{background:rgba(59,130,246,.08);border-left-color:var(--secondary)}
+        .nav-item.active{background:rgba(59,130,246,.12);border-left-color:var(--accent);font-weight:500}
+        .content{margin-left:300px;flex:1;padding:30px 40px;max-width:calc(100vw - 300px)}
+        .section{margin-bottom:50px;scroll-margin-top:20px}
+        .section-header{border-bottom:3px solid var(--primary);padding-bottom:12px;margin-bottom:25px}
+        .section-header h2{font-size:24px;color:var(--primary);font-weight:600}
+        .badge{display:inline-block;background:var(--accent);color:#fff;padding:3px 10px;border-radius:4px;font-size:11px;font-weight:600;margin-right:8px}
+        .subsection{margin-bottom:35px}
+        .subsection h3{font-size:18px;color:var(--primary);margin-bottom:12px;padding-left:12px;border-left:4px solid var(--accent)}
+        .code-block{background:var(--code-bg);border:1px solid var(--border);border-radius:8px;margin:0;overflow:hidden}
+        .code-header{background:var(--primary);color:#fff;padding:8px 15px;font-size:13px;font-weight:600}
+        .code-content{padding:12px;overflow-x:auto}
+        .code-line{display:flex;margin-bottom:2px;font-family:Consolas,Monaco,"Courier New",monospace;font-size:12px;line-height:1.5}
+        .line-number{color:var(--text-light);min-width:45px;text-align:right;padding-right:12px;user-select:none}
+        .line-code{color:var(--text);flex:1;white-space:pre-wrap;word-break:break-word}
+        .line-explanation{background:var(--highlight);border:1px solid var(--border);border-radius:8px;margin:0;overflow:hidden;padding:0 12px 12px 12px;font-size:12px;line-height:2.0}
+        .line-explanation strong{color:var(--primary)}
+        
+        /* 左右并排布局 */
+        .code-section{display:flex;gap:16px;margin:15px 0;align-items:flex-start}
+        .code-section .code-block{flex:1;min-width:0}
+        .code-section .line-explanation{flex:1;min-width:0}
+        .python-syntax{background:#dbeafe;border:1px solid #93c5fd;border-radius:6px;padding:12px;margin:12px 0}
+        .python-syntax h5{color:var(--primary);font-size:13px;margin-bottom:8px;font-weight:600}
+        .python-syntax ul{list-style:none;padding-left:0}
+        .python-syntax li{padding:3px 0;font-size:12px;line-height:1.5}
+        .python-syntax li::before{content:"▸ ";color:var(--secondary);font-weight:bold;margin-right:5px}
+        .logic-flow{background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:12px;margin:12px 0}
+        .logic-flow h5{color:var(--primary);font-size:13px;margin-bottom:8px;font-weight:600}
+        .logic-flow ol{padding-left:18px}
+        .logic-flow li{padding:3px 0;font-size:12px;line-height:1.5}
+        .business-note{background:#fef3c7;border:1px solid #fbbf24;border-radius:6px;padding:12px;margin:12px 0}
+        .business-note h5{color:#92400e;font-size:13px;margin-bottom:8px;font-weight:600}
+        .business-note p{font-size:12px;line-height:1.6}
+        .file-overview{background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:15px;margin-bottom:20px}
+        .file-overview h4{color:#166534;font-size:14px;margin-bottom:8px}
+        .file-overview p{font-size:13px;line-height:1.6}
+        .file-overview ul{font-size:13px;line-height:1.8;padding-left:20px}
+        
+        
+        
+        .explanation-header{background:var(--primary);color:#fff;padding:8px 15px;font-size:13px;font-weight:600;margin:0 -12px}
+        /* 导航栏折叠功能 */
+        .sidebar{transition:width 0.3s ease}
+        .sidebar.collapsed{width:0;padding:0;overflow:hidden;border:none}
+        .sidebar-toggle{position:fixed;left:300px;top:10px;z-index:100;background:var(--primary);color:#fff;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;font-size:14px;transition:left 0.3s ease;box-shadow:0 2px 4px rgba(0,0,0,0.1)}
+        .sidebar-toggle.collapsed{left:0}
+        .content{transition:margin-left 0.3s ease}
+        .content.expanded{margin-left:0}
+        @media(max-width:900px){.sidebar{width:100%;height:auto;position:relative}.content{margin-left:0;padding:20px}}
+    </style>
+</head>
+<body>
+<div class="container">
+    <!-- 左侧导航 -->
+    <button class="sidebar-toggle" onclick="toggleSidebar()" title="折叠/展开导航">☰</button>
+    <nav class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h1>半导体晶圆良率建模系统</h1>
+            <p>semiconductor-yield-modeling 代码详解</p>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title" onclick="toggleSection(this)">项目概览</div>
+            <ul class="nav-items">
+                <li class="nav-item" onclick="scrollToSection('overview')">项目架构与文件清单</li>
+                <li class="nav-item" onclick="scrollToSection('dataflow')">数据流与业务闭环</li>
+            </ul>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title" onclick="toggleSection(this)">main.py - 良率建模</div>
+            <ul class="nav-items">
+                <li class="nav-item" onclick="scrollToSection('main-imports')">导入与全局配置</li>
+                <li class="nav-item" onclick="scrollToSection('main-prepare')">prepare() 数据准备</li>
+                <li class="nav-item" onclick="scrollToSection('main-regress')">regress() 良率回归</li>
+                <li class="nav-item" onclick="scrollToSection('main-classify')">classify() 低良率识别</li>
+                <li class="nav-item" onclick="scrollToSection('main-rootcause')">root_cause() SHAP根因</li>
+                <li class="nav-item" onclick="scrollToSection('main-main')">main() 主流程</li>
+            </ul>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title" onclick="toggleSection(this)">spc_analysis.py - SPC控制</div>
+            <ul class="nav-items">
+                <li class="nav-item" onclick="scrollToSection('spc-config')">全局配置与常数表</li>
+                <li class="nav-item" onclick="scrollToSection('spc-subgroups')">prepare_subgroups()</li>
+                <li class="nav-item" onclick="scrollToSection('spc-xbar')">xbar_r_chart() 控制图</li>
+                <li class="nav-item" onclick="scrollToSection('spc-capability')">capability_analysis()</li>
+                <li class="nav-item" onclick="scrollToSection('spc-ooc')">ooc_analysis() 失控分析</li>
+                <li class="nav-item" onclick="scrollToSection('spc-main')">main() 主流程</li>
+            </ul>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title" onclick="toggleSection(this)">optimize.py - 工艺优化</div>
+            <ul class="nav-items">
+                <li class="nav-item" onclick="scrollToSection('opt-surrogate')">代理模型 build_surrogate()</li>
+                <li class="nav-item" onclick="scrollToSection('opt-cpk')">Cpk计算与多目标评分</li>
+                <li class="nav-item" onclick="scrollToSection('opt-doe')">DOE LHS实验设计</li>
+                <li class="nav-item" onclick="scrollToSection('opt-bo')">贝叶斯优化 GP+EI</li>
+                <li class="nav-item" onclick="scrollToSection('opt-pareto')">Pareto多目标优化</li>
+                <li class="nav-item" onclick="scrollToSection('opt-main')">main() 主流程</li>
+            </ul>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title" onclick="toggleSection(this)">generate_reports.py - 报表</div>
+            <ul class="nav-items">
+                <li class="nav-item" onclick="scrollToSection('rpt-overview')">报表系统概览</li>
+                <li class="nav-item" onclick="scrollToSection('rpt-spc')">SPC报表生成</li>
+                <li class="nav-item" onclick="scrollToSection('rpt-yield')">良率报表生成</li>
+                <li class="nav-item" onclick="scrollToSection('rpt-cost')">成本报表生成</li>
+            </ul>
+        </div>
+
+        <div class="nav-section">
+            <div class="nav-section-title" onclick="toggleSection(this)">generate_dashboard.py</div>
+            <ul class="nav-items">
+                <li class="nav-item" onclick="scrollToSection('dash-overview')">动态Dashboard概览</li>
+                <li class="nav-item" onclick="scrollToSection('dash-load')">load_data() 数据加载</li>
+                <li class="nav-item" onclick="scrollToSection('dash-metrics')">指标计算函数</li>
+                <li class="nav-item" onclick="scrollToSection('dash-html')">generate_html() 生成</li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 右侧内容 -->
+    <div class="content">
+
+<!-- ================================================================ -->
+<!-- 项目概览 -->
+<!-- ================================================================ -->
+<div class="section" id="overview">
+    <div class="section-header">
+        <h2><span class="badge">概览</span>项目架构与文件清单</h2>
+    </div>
+    <div class="file-overview">
+        <h4>项目目标</h4>
+        <p>半导体晶圆良率建模分析系统，覆盖从数据准备、良率回归预测、低良率拦截、SHAP根因分析、SPC统计过程控制、DOE实验设计、贝叶斯优化到报表生成的完整工业数据分析流程。</p>
+    </div>
+    <div class="file-overview">
+        <h4>文件清单（5个核心Python文件）</h4>
+        <ul>
+            <li><strong>modeling/main.py</strong> — 良率回归 + 低良率识别 + SHAP根因分析（核心建模）</li>
+            <li><strong>modeling/spc_analysis.py</strong> — Xbar-R控制图 + 过程能力分析(Cp/Cpk/Pp/Ppk)</li>
+            <li><strong>modeling/optimize.py</strong> — DOE(LHS) + 贝叶斯优化(GP+EI) + Pareto多目标优化</li>
+            <li><strong>generate_reports.py</strong> — 生成6类静态HTML报表（SPC/良率/优化/设备/WIP/成本）</li>
+            <li><strong>generate_dashboard.py</strong> — 动态Dashboard，从JSON读取优化结果生成可交互页面</li>
+        </ul>
+    </div>
+</div>
+
+<div class="section" id="dataflow">
+    <div class="section-header">
+        <h2><span class="badge">概览</span>数据流与业务闭环</h2>
+    </div>
+    <div class="logic-flow">
+        <h5>完整业务流程</h5>
+        <ol>
+            <li><strong>数据准备</strong>：CSV(1250×28) → 18个数值工艺参数 + 4个机台one-hot → 时间切分80/20</li>
+            <li><strong>良率回归</strong>：XGBoost / RandomForest 预测 yield → R²/RMSE 评估精度</li>
+            <li><strong>低良率识别</strong>：XGBClassifier 二分类(yield&lt;0.35) → Top-k拦截覆盖率曲线</li>
+            <li><strong>SHAP根因</strong>：TreeExplainer → 定位驱动良率的关键参数(CD/oxide/vth)</li>
+            <li><strong>SPC控制</strong>：对关键参数绘制Xbar-R控制图 → 计算Cp/Cpk/Pp/Ppk → 识别失控点</li>
+            <li><strong>工艺优化</strong>：代理模型(RF) → LHS采样 → 贝叶斯优化(GP+EI) → Pareto前沿(yield+Cpk)</li>
+            <li><strong>报表输出</strong>：静态报表(6类HTML) + 动态Dashboard(可切换视图)</li>
+        </ol>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- main.py 代码详解 -->
+<!-- ================================================================ -->
+<div class="section" id="main-imports">
+    <div class="section-header">
+        <h2><span class="badge">main.py</span>导入与全局配置</h2>
+    </div>
+    <div class="file-overview">
+        <h4>文件职责</h4>
+        <p>核心建模文件：良率回归(XGBoost/RF)、低良率识别(分类)、SHAP根因分析。采用时间切分模拟"用过去预测未来"的工业场景。</p>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第1-46行：文件头注释 + 导入 + 全局配置</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">1</span><span class="line-code"># -*- coding: utf-8 -*-</span></div>
+<div class="code-line"><span class="line-number">2</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">3</span><span class="line-code">半导体晶圆良率建模分析（主项目）</span></div>
+<div class="code-line"><span class="line-number">4</span><span class="line-code">数据: data/semiconductor_yield_forecasting_data.csv（1250×28，产线 MES 系统采集）</span></div>
+<div class="code-line"><span class="line-number">5</span><span class="line-code">任务:</span></div>
+<div class="code-line"><span class="line-number">6</span><span class="line-code">  1) 良率回归：用工艺参数 + 机台信息预测 yield（R²/RMSE）</span></div>
+<div class="code-line"><span class="line-number">7</span><span class="line-code">  2) 低良率识别：识别 yield&lt;35% 的高风险批次（Top-k 拦截覆盖率）</span></div>
+<div class="code-line"><span class="line-number">8</span><span class="line-code">  3) 根因分析：SHAP 定位驱动良率的关键工艺参数</span></div>
+<div class="code-line"><span class="line-number">9</span><span class="line-code">"""</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第1-46行：文件头注释 + 导入 + 全局配置</div>
+        <strong>第1行：</strong><code># -*- coding: utf-8 -*-</code> 声明源文件编码为UTF-8。Python 3默认UTF-8，但显式声明是好习惯，确保跨平台兼容。<br>
+        <strong>第2-9行：</strong>模块级docstring（三引号字符串），描述数据规模(1250行×28列)和三大任务。这是Python的文档约定，可通过 <code>.__doc__</code> 属性访问。
+    </div>
+</div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第18-46行：导入与路径配置</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">18</span><span class="line-code">import os</span></div>
+<div class="code-line"><span class="line-number">19</span><span class="line-code">import numpy as np</span></div>
+<div class="code-line"><span class="line-number">20</span><span class="line-code">import pandas as pd</span></div>
+<div class="code-line"><span class="line-number">21</span><span class="line-code">import matplotlib</span></div>
+<div class="code-line"><span class="line-number">22</span><span class="line-code">matplotlib.use("Agg")</span></div>
+<div class="code-line"><span class="line-number">23</span><span class="line-code">import matplotlib.pyplot as plt</span></div>
+<div class="code-line"><span class="line-number">24</span><span class="line-code">from sklearn.metrics import (r2_score, mean_absolute_error, mean_squared_error,</span></div>
+<div class="code-line"><span class="line-number">25</span><span class="line-code">                             roc_auc_score, average_precision_score)</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第18-46行：导入与路径配置</div>
+        <strong>os：</strong>操作系统接口，用于路径拼接(<code>os.path.join</code>)和创建目录(<code>os.makedirs</code>)。<br>
+        <strong>numpy as np：</strong>数值计算库，约定别名 <code>np</code>。提供数组操作、统计函数等。<br>
+        <strong>pandas as pd：</strong>数据分析库，约定别名 <code>pd</code>。核心数据结构 DataFrame（二维表格）。<br>
+        <strong>matplotlib.use("Agg")：</strong>必须在 <code>import pyplot</code> 之前调用。"Agg"是非交互式后端，适合服务器环境生成PNG图片，不需要GUI显示器。<br>
+        <strong>sklearn.metrics：</strong>评估指标模块。<code>r2_score</code>(决定系数)、<code>mean_absolute_error</code>(MAE)、<code>mean_squared_error</code>(MSE)用于回归评估；<code>roc_auc_score</code>(ROC曲线下面积)、<code>average_precision_score</code>(PR曲线下面积)用于分类评估。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>import X as Y</strong>：导入模块并指定别名，后续用 Y 代替 X</li>
+            <li><strong>from X import (a, b, c)</strong>：从模块中导入多个名称，圆括号允许跨行书写</li>
+            <li><strong>matplotlib.use()</strong>：必须在 pyplot 导入前调用，否则无效。这是matplotlib的设计约束</li>
+        </ul>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第27-46行：字体配置 + 路径常量 + 特征列表</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">27</span><span class="line-code">plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]</span></div>
+<div class="code-line"><span class="line-number">28</span><span class="line-code">plt.rcParams["axes.unicode_minus"] = False</span></div>
+<div class="code-line"><span class="line-number">30</span><span class="line-code"># 项目根目录（modeling/ 的父目录）</span></div>
+<div class="code-line"><span class="line-number">31</span><span class="line-code">BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))</span></div>
+<div class="code-line"><span class="line-number">32</span><span class="line-code">DATA = os.path.join(BASE, "data")</span></div>
+<div class="code-line"><span class="line-number">33</span><span class="line-code">RESULT = os.path.join(BASE, "results")</span></div>
+<div class="code-line"><span class="line-number">34</span><span class="line-code">FIGURES = os.path.join(BASE, "reports", "figures")</span></div>
+<div class="code-line"><span class="line-number">35</span><span class="line-code">os.makedirs(RESULT, exist_ok=True)</span></div>
+<div class="code-line"><span class="line-number">36</span><span class="line-code">os.makedirs(FIGURES, exist_ok=True)</span></div>
+<div class="code-line"><span class="line-number">37</span><span class="line-code">SEED = 42</span></div>
+<div class="code-line"><span class="line-number">38</span><span class="line-code">np.random.seed(SEED)</span></div>
+<div class="code-line"><span class="line-number">40</span><span class="line-code">NUM_PARAMS = ["etch_rate", "pressure", "temperature", "exposure_time", ...]</span></div>
+<div class="code-line"><span class="line-number">44</span><span class="line-code">TOOLS = ["etch_tool", "litho_tool", "deposition_tool", "implant_tool"]</span></div>
+<div class="code-line"><span class="line-number">45</span><span class="line-code">LOW_CUT = 0.35  # 低良率阈值</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第27-46行：字体配置 + 路径常量 + 特征列表</div>
+        <strong>第27行：</strong>配置matplotlib中文字体。按优先级尝试：微软雅黑 → 黑体 → DejaVu Sans（英文回退）。不配置则中文显示为方块。<br>
+        <strong>第28行：</strong>禁用unicode负号替换。matplotlib默认将负号"-"替换为Unicode减号，但某些字体不支持，设为False保持原样。<br>
+        <strong>第31行：</strong><code>__file__</code> 是当前脚本路径。<code>os.path.abspath</code> 取绝对路径，两次 <code>dirname</code> 从 <code>modeling/main.py</code> 上溯到项目根目录。<br>
+        <strong>第35-36行：</strong><code>os.makedirs(path, exist_ok=True)</code> 递归创建目录，<code>exist_ok=True</code> 表示目录已存在时不报错。<br>
+        <strong>第37-38行：</strong>固定随机种子42，确保实验可复现。每次运行结果一致。<br>
+        <strong>第40-43行：</strong>18个数值工艺参数列表（刻蚀速率、压力、温度等），对应CSV中的列名。<br>
+        <strong>第44行：</strong>4个机台类别变量（刻蚀机、光刻机、沉积机、注入机），需要one-hot编码。<br>
+        <strong>第45行：</strong>低良率阈值0.35（35%），低于此值的批次被标记为"高风险"。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>__file__</strong>：Python内置变量，当前模块的文件路径（字符串）</li>
+            <li><strong>os.path.abspath / dirname / join</strong>：路径操作三件套。abspath转绝对路径，dirname取父目录，join拼接路径（自动处理分隔符）</li>
+            <li><strong>os.makedirs(path, exist_ok=True)</strong>：递归创建多级目录。exist_ok=True 是Python 3.2+的参数，避免目录已存在时抛 FileExistsError</li>
+            <li><strong>列表字面量 ["a", "b", ...]</strong>：Python的列表（list），有序可变序列，类似JavaScript的Array</li>
+        </ul>
+    </div>
+</div>
+
+<!-- prepare() -->
+<div class="section" id="main-prepare">
+    <div class="section-header">
+        <h2><span class="badge">main.py</span>prepare() 数据准备与特征工程</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第51-70行：prepare() 函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">51</span><span class="line-code">def prepare():</span></div>
+<div class="code-line"><span class="line-number">52</span><span class="line-code">    print("===== 1. 数据准备 =====")</span></div>
+<div class="code-line"><span class="line-number">53</span><span class="line-code">    df = pd.read_csv(os.path.join(DATA, "semiconductor_yield_forecasting_data.csv"))</span></div>
+<div class="code-line"><span class="line-number">54</span><span class="line-code">    # 按时间排序（时间切分的前提）</span></div>
+<div class="code-line"><span class="line-number">55</span><span class="line-code">    df = df.sort_values("process_date").reset_index(drop=True)</span></div>
+<div class="code-line"><span class="line-number">57</span><span class="line-code">    # 数值工艺参数</span></div>
+<div class="code-line"><span class="line-number">58</span><span class="line-code">    X_num = df[NUM_PARAMS].astype(float)</span></div>
+<div class="code-line"><span class="line-number">59</span><span class="line-code">    # 机台 one-hot（设备差异作为结构性特征）</span></div>
+<div class="code-line"><span class="line-number">60</span><span class="line-code">    X_tool = pd.get_dummies(df[TOOLS], prefix="T")</span></div>
+<div class="code-line"><span class="line-number">61</span><span class="line-code">    X = pd.concat([X_num, X_tool], axis=1)</span></div>
+<div class="code-line"><span class="line-number">63</span><span class="line-code">    y_reg = df["yield"].values                      # 回归目标：良率</span></div>
+<div class="code-line"><span class="line-number">64</span><span class="line-code">    y_cls = (df["yield"] &lt; LOW_CUT).astype(int).values  # 分类目标：低良率</span></div>
+<div class="code-line"><span class="line-number">65</span><span class="line-code">    n = len(df)</span></div>
+<div class="code-line"><span class="line-number">66</span><span class="line-code">    cut = int(n * 0.8)</span></div>
+<div class="code-line"><span class="line-number">67</span><span class="line-code">    print(f"  特征: {X.shape[1]}（18 数值参数 + {X_tool.shape[1]} 机台 dummy）")</span></div>
+<div class="code-line"><span class="line-number">68</span><span class="line-code">    print(f"  切分: 训练 {cut} / 测试 {n-cut}（按时间 80/20）")</span></div>
+<div class="code-line"><span class="line-number">69</span><span class="line-code">    print(f"  低良率(&lt;{LOW_CUT}): {y_cls.sum()} 片 ({y_cls.mean()*100:.1f}%)")</span></div>
+<div class="code-line"><span class="line-number">70</span><span class="line-code">    return X, y_reg, y_cls, cut</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第51-70行：prepare() 函数</div>
+        <strong>第51行：</strong><code>def prepare():</code> 定义无参函数。Python用 <code>def</code> 关键字定义函数，冒号后缩进的代码块是函数体。<br>
+        <strong>第53行：</strong><code>pd.read_csv()</code> 读取CSV文件为DataFrame。这是pandas最常用的数据加载方法，自动推断列类型。<br>
+        <strong>第55行：</strong><code>sort_values("process_date")</code> 按日期列排序。<code>reset_index(drop=True)</code> 重置行索引为0,1,2...，<code>drop=True</code> 表示不把旧索引保留为新列。<br>
+        <strong>第58行：</strong><code>df[NUM_PARAMS]</code> 选取18列数值参数。<code>.astype(float)</code> 确保所有列为浮点类型（防止整数列影响后续计算）。<br>
+        <strong>第60行：</strong><code>pd.get_dummies()</code> 将类别变量转为one-hot编码。例如 <code>etch_tool</code> 有4种设备，会生成4个0/1列。<code>prefix="T"</code> 给列名加前缀"T_"。<br>
+        <strong>第61行：</strong><code>pd.concat([...], axis=1)</code> 沿列方向（axis=1）拼接两个DataFrame，相当于"左右合并"。<br>
+        <strong>第63行：</strong><code>df["yield"].values</code> 取DataFrame列的numpy数组（去掉索引和列名，纯数值数组）。<br>
+        <strong>第64行：</strong><code>(df["yield"] &lt; LOW_CUT)</code> 生成布尔数组(True/False)。<code>.astype(int)</code> 将True→1, False→0。这就是分类标签。<br>
+        <strong>第66行：</strong><code>int(n * 0.8)</code> 计算80%切分点。前80%做训练，后20%做测试。<br>
+        <strong>第67-69行：</strong>f-string格式化输出。<code>{X.shape[1]}</code> 取特征数量，<code>{y_cls.mean()*100:.1f}</code> 计算低良率比例并保留1位小数。<br>
+        <strong>第70行：</strong>返回4个值。Python支持多返回值（实际返回一个tuple）。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>def func():</strong> 定义函数，无参数时括号内为空。函数体通过缩进（4空格）界定</li>
+            <li><strong>df.sort_values(col).reset_index(drop=True)</strong>：链式调用——前一个方法的返回值直接调用后一个方法</li>
+            <li><strong>pd.get_dummies()</strong>：one-hot编码。类别变量(如"etch_tool_A")无法直接输入模型，需转为多个0/1列</li>
+            <li><strong>pd.concat([A, B], axis=1)</strong>：axis=0 纵向堆叠（上下），axis=1 横向拼接（左右）</li>
+            <li><strong>.values</strong>：DataFrame/Series → numpy数组。去掉pandas的索引包装，获取纯数据</li>
+            <li><strong>布尔数组.astype(int)</strong>：True→1, False→0 的标准转换方法</li>
+            <li><strong>f"..."</strong>：f-string（Python 3.6+），花括号内可写任意表达式，<code>:.1f</code> 表示浮点数保留1位小数</li>
+            <li><strong>return A, B, C</strong>：多返回值，实际返回tuple (A, B, C)。调用时可用 <code>a, b, c = func()</code> 解包</li>
+        </ul>
+    </div>
+    <div class="logic-flow">
+        <h5>内在逻辑</h5>
+        <ol>
+            <li>加载CSV → 按时间排序（模拟产线数据按加工日期到达）</li>
+            <li>特征工程：18个数值参数 + 机台one-hot → 拼接为完整特征矩阵X</li>
+            <li>构造两个目标变量：y_reg(连续值,用于回归) 和 y_cls(0/1,用于分类)</li>
+            <li>时间切分：前80%训练，后20%测试。不能用随机切分（会泄露未来信息）</li>
+        </ol>
+    </div>
+    <div class="business-note">
+        <h5>业务背景</h5>
+        <p>为什么按时间切分而非随机切分？因为产线数据有时序性——"用过去预测未来"才有实际意义。随机切分会让模型"看到未来数据来预测过去"，导致评估指标虚高但实际无效。</p>
+    </div>
+</div>
+
+<!-- regress() -->
+<div class="section" id="main-regress">
+    <div class="section-header">
+        <h2><span class="badge">main.py</span>regress() 良率回归</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第76-113行：regress() 函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">76</span><span class="line-code">def regress(X, y, cut):</span></div>
+<div class="code-line"><span class="line-number">77</span><span class="line-code">    print("\n===== 2. 良率回归 =====")</span></div>
+<div class="code-line"><span class="line-number">78</span><span class="line-code">    X_tr, X_te = X.iloc[:cut], X.iloc[cut:]</span></div>
+<div class="code-line"><span class="line-number">79</span><span class="line-code">    y_tr, y_te = y[:cut], y[cut:]</span></div>
+<div class="code-line"><span class="line-number">81</span><span class="line-code">    from xgboost import XGBRegressor</span></div>
+<div class="code-line"><span class="line-number">82</span><span class="line-code">    from sklearn.ensemble import RandomForestRegressor</span></div>
+<div class="code-line"><span class="line-number">84</span><span class="line-code">    models = {</span></div>
+<div class="code-line"><span class="line-number">85</span><span class="line-code">        "XGBoost": XGBRegressor(n_estimators=400, max_depth=4, learning_rate=0.05,</span></div>
+<div class="code-line"><span class="line-number">86</span><span class="line-code">                                subsample=0.8, colsample_bytree=0.8,</span></div>
+<div class="code-line"><span class="line-number">87</span><span class="line-code">                                random_state=SEED, verbosity=0),</span></div>
+<div class="code-line"><span class="line-number">88</span><span class="line-code">        "RandomForest": RandomForestRegressor(n_estimators=400, max_depth=8,</span></div>
+<div class="code-line"><span class="line-number">89</span><span class="line-code">                                              min_samples_leaf=3, random_state=SEED, n_jobs=-1),</span></div>
+<div class="code-line"><span class="line-number">90</span><span class="line-code">    }</span></div>
+<div class="code-line"><span class="line-number">91</span><span class="line-code">    results = {}</span></div>
+<div class="code-line"><span class="line-number">92</span><span class="line-code">    for name, m in models.items():</span></div>
+<div class="code-line"><span class="line-number">93</span><span class="line-code">        m.fit(X_tr, y_tr)</span></div>
+<div class="code-line"><span class="line-number">94</span><span class="line-code">        p = m.predict(X_te)</span></div>
+<div class="code-line"><span class="line-number">95</span><span class="line-code">        results[name] = {"model": m, "pred": p}</span></div>
+<div class="code-line"><span class="line-number">96</span><span class="line-code">        r2 = r2_score(y_te, p)</span></div>
+<div class="code-line"><span class="line-number">97</span><span class="line-code">        rmse = float(np.sqrt(mean_squared_error(y_te, p)))</span></div>
+<div class="code-line"><span class="line-number">98</span><span class="line-code">        mae = mean_absolute_error(y_te, p)</span></div>
+<div class="code-line"><span class="line-number">99</span><span class="line-code">        print(f"  {name:14s} R²={r2:.3f} | RMSE={rmse:.3f} | MAE={mae:.3f}")</span></div>
+<div class="code-line"><span class="line-number">101</span><span class="line-code">    # 预测 vs 实际散点（用效果最好的模型）</span></div>
+<div class="code-line"><span class="line-number">102</span><span class="line-code">    best = max(results, key=lambda k: r2_score(y_te, results[k]["pred"]))</span></div>
+<div class="code-line"><span class="line-number">103</span><span class="line-code">    p = results[best]["pred"]</span></div>
+<div class="code-line"><span class="line-number">104</span><span class="line-code">    fig, ax = plt.subplots(figsize=(6, 5))</span></div>
+<div class="code-line"><span class="line-number">105</span><span class="line-code">    ax.scatter(y_te, p, s=12, alpha=0.5, color="#3B6EA5")</span></div>
+<div class="code-line"><span class="line-number">106</span><span class="line-code">    lim = [min(y_te.min(), p.min()), max(y_te.max(), p.max())]</span></div>
+<div class="code-line"><span class="line-number">107</span><span class="line-code">    ax.plot(lim, lim, "--", color="#B23A48", lw=1.2, label="理想线 y=x")</span></div>
+<div class="code-line"><span class="line-number">108</span><span class="line-code">    ax.set_xlabel("实际良率"); ax.set_ylabel("预测良率")</span></div>
+<div class="code-line"><span class="line-number">109</span><span class="line-code">    ax.set_title(f"{best} 良率预测 vs 实际（测试集 R²={r2_score(y_te, p):.3f}）")</span></div>
+<div class="code-line"><span class="line-number">110</span><span class="line-code">    ax.legend()</span></div>
+<div class="code-line"><span class="line-number">111</span><span class="line-code">    fig.tight_layout(); fig.savefig(os.path.join(FIGURES, "pred_vs_actual.png"), dpi=150)</span></div>
+<div class="code-line"><span class="line-number">112</span><span class="line-code">    plt.close(fig)</span></div>
+<div class="code-line"><span class="line-number">113</span><span class="line-code">    return results, best</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第76-113行：regress() 函数</div>
+        <strong>第78行：</strong><code>X.iloc[:cut]</code> 用位置索引取前cut行（训练集），<code>X.iloc[cut:]</code> 取剩余行（测试集）。<code>iloc</code> 是pandas的纯整数位置索引器。<br>
+        <strong>第79行：</strong><code>y[:cut]</code> 是numpy数组的切片（不需要iloc）。numpy数组直接用冒号切片。<br>
+        <strong>第81-82行：</strong>函数内导入（lazy import）。只在函数被调用时才导入，减少启动时间，也避免顶层导入过多依赖。<br>
+        <strong>第84-90行：</strong>字典存储两个模型。<code>XGBRegressor</code> 参数：<code>n_estimators=400</code>(400棵树)、<code>max_depth=4</code>(树深4层，防过拟合)、<code>learning_rate=0.05</code>(步长0.05)、<code>subsample=0.8</code>(每棵树用80%数据)、<code>colsample_bytree=0.8</code>(每棵树用80%特征)。<br>
+        <strong>第92行：</strong><code>models.items()</code> 返回字典的(键, 值)对。<code>for name, m in ...</code> 同时解包键和值。<br>
+        <strong>第93行：</strong><code>m.fit(X_tr, y_tr)</code> 训练模型。sklearn统一API：fit(特征, 标签)。<br>
+        <strong>第94行：</strong><code>m.predict(X_te)</code> 预测。返回numpy数组。<br>
+        <strong>第96-98行：</strong>三个回归指标。R²越接近1越好，RMSE和MAE越小越好。<br>
+        <strong>第99行：</strong><code>{name:14s}</code> 格式化字符串，左对齐占14个字符宽度。<br>
+        <strong>第102行：</strong><code>max(results, key=lambda k: ...)</code> 在字典的键中找使lambda函数返回值最大的键。<code>lambda</code> 是匿名函数。<br>
+        <strong>第104行：</strong><code>plt.subplots(figsize=(6,5))</code> 创建6×5英寸的图表。<code>fig</code> 是整个图，<code>ax</code> 是绘图区域。<br>
+        <strong>第105行：</strong><code>ax.scatter()</code> 散点图。<code>s=12</code> 点大小，<code>alpha=0.5</code> 半透明。<br>
+        <strong>第107行：</strong>画y=x理想线——完美预测时，预测值=实际值，所有点应落在此线上。<br>
+        <strong>第111行：</strong><code>fig.tight_layout()</code> 自动调整边距防止标签被裁切。<code>savefig()</code> 保存PNG。<br>
+        <strong>第112行：</strong><code>plt.close(fig)</code> 关闭图形释放内存。服务器环境必须手动关闭，否则内存泄漏。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>dict.items()</strong>：返回字典的(键,值)对迭代器，用于 <code>for k, v in d.items()</code></li>
+            <li><strong>lambda 参数: 表达式</strong>：匿名函数，一行完成简单逻辑。等价于 <code>def f(参数): return 表达式</code></li>
+            <li><strong>max(iterable, key=func)</strong>：按func的返回值找最大元素。key参数接受任何单参数函数</li>
+            <li><strong>numpy切片 y[:cut]</strong>：与list切片语法相同，返回视图（不复制数据，高效）</li>
+            <li><strong>分号 ;</strong>：Python中可在同一行写多条语句，用分号分隔（不推荐滥用，但matplotlib中常见）</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>为什么对比两个模型？</h5>
+        <p>XGBoost（梯度提升树）和RandomForest（随机森林）都是集成学习方法，但原理不同：RF是bagging（并行训练多棵树取平均），XGBoost是boosting（串行训练，每棵树修正前一棵的残差）。对比两者可以找到更适合当前数据的模型。</p>
+    </div>
+</div>
+
+<!-- classify() -->
+<div class="section" id="main-classify">
+    <div class="section-header">
+        <h2><span class="badge">main.py</span>classify() 低良率识别（Top-k拦截）</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第119-164行：classify() 函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">119</span><span class="line-code">def classify(X, y, cut):</span></div>
+<div class="code-line"><span class="line-number">120</span><span class="line-code">    print("\n===== 3. 低良率识别（Top-k 拦截） =====")</span></div>
+<div class="code-line"><span class="line-number">121</span><span class="line-code">    X_tr, X_te = X.iloc[:cut], X.iloc[cut:]</span></div>
+<div class="code-line"><span class="line-number">122</span><span class="line-code">    y_tr, y_te = y[:cut], y[cut:]</span></div>
+<div class="code-line"><span class="line-number">124</span><span class="line-code">    from xgboost import XGBClassifier</span></div>
+<div class="code-line"><span class="line-number">125</span><span class="line-code">    neg, pos = int((y_tr == 0).sum()), max(1, int((y_tr == 1).sum()))</span></div>
+<div class="code-line"><span class="line-number">126</span><span class="line-code">    clf = XGBClassifier(scale_pos_weight=neg / pos, eval_metric="aucpr",</span></div>
+<div class="code-line"><span class="line-number">127</span><span class="line-code">                        n_estimators=400, max_depth=4, learning_rate=0.05,</span></div>
+<div class="code-line"><span class="line-number">128</span><span class="line-code">                        subsample=0.8, colsample_bytree=0.8,</span></div>
+<div class="code-line"><span class="line-number">129</span><span class="line-code">                        random_state=SEED, verbosity=0)</span></div>
+<div class="code-line"><span class="line-number">130</span><span class="line-code">    clf.fit(X_tr, y_tr)</span></div>
+<div class="code-line"><span class="line-number">131</span><span class="line-code">    prob = clf.predict_proba(X_te)[:, 1]</span></div>
+<div class="code-line"><span class="line-number">133</span><span class="line-code">    roc = roc_auc_score(y_te, prob)</span></div>
+<div class="code-line"><span class="line-number">134</span><span class="line-code">    pr = average_precision_score(y_te, prob)</span></div>
+<div class="code-line"><span class="line-number">135</span><span class="line-code">    print(f"  XGBoost 低良率识别: ROC-AUC={roc:.3f} | PR-AUC={pr:.3f}")</span></div>
+<div class="code-line"><span class="line-number">137</span><span class="line-code">    # Top-k 覆盖率：按风险分拦截 k% 批次能覆盖多少低良率</span></div>
+<div class="code-line"><span class="line-number">138</span><span class="line-code">    yt = np.asarray(y_te)</span></div>
+<div class="code-line"><span class="line-number">139</span><span class="line-code">    n_fail = max(1, int(yt.sum()))</span></div>
+<div class="code-line"><span class="line-number">140</span><span class="line-code">    ks = [0.05, 0.10, 0.20, 0.30]</span></div>
+<div class="code-line"><span class="line-number">141</span><span class="line-code">    covs = []</span></div>
+<div class="code-line"><span class="line-number">142</span><span class="line-code">    for k in ks:</span></div>
+<div class="code-line"><span class="line-number">143</span><span class="line-code">        cutk = max(1, int(len(yt) * k))</span></div>
+<div class="code-line"><span class="line-number">144</span><span class="line-code">        top = np.argsort(prob)[::-1][:cutk]</span></div>
+<div class="code-line"><span class="line-number">145</span><span class="line-code">        cov = yt[top].sum() / n_fail</span></div>
+<div class="code-line"><span class="line-number">146</span><span class="line-code">        covs.append(cov)</span></div>
+<div class="code-line"><span class="line-number">147</span><span class="line-code">        print(f"    Top{int(k*100)}% 拦截覆盖率 = {cov:.2f}（随机基线 {k:.2f}）")</span></div>
+<div class="code-line"><span class="line-number">149</span><span class="line-code">    # Top-k 覆盖率曲线图</span></div>
+<div class="code-line"><span class="line-number">150</span><span class="line-code">    ks_fine = [i / 100 for i in range(5, 101, 5)]</span></div>
+<div class="code-line"><span class="line-number">151</span><span class="line-code">    cov_fine = []</span></div>
+<div class="code-line"><span class="line-number">152</span><span class="line-code">    for k in ks_fine:</span></div>
+<div class="code-line"><span class="line-number">153</span><span class="line-code">        cutk = max(1, int(len(yt) * k))</span></div>
+<div class="code-line"><span class="line-number">154</span><span class="line-code">        top = np.argsort(prob)[::-1][:cutk]</span></div>
+<div class="code-line"><span class="line-number">155</span><span class="line-code">        cov_fine.append(yt[top].sum() / n_fail)</span></div>
+<div class="code-line"><span class="line-number">156</span><span class="line-code">    fig, ax = plt.subplots(figsize=(6, 4))</span></div>
+<div class="code-line"><span class="line-number">157</span><span class="line-code">    ax.plot([k * 100 for k in ks_fine], cov_fine, "-o", ms=3, color="#3B6EA5", label="模型")</span></div>
+<div class="code-line"><span class="line-number">158</span><span class="line-code">    ax.plot([k * 100 for k in ks_fine], ks_fine, "--", color="#6B7280", label="随机基线")</span></div>
+<div class="code-line"><span class="line-number">159</span><span class="line-code">    ax.axhline(1.0, color="#B23A48", lw=0.8, ls=":")</span></div>
+<div class="code-line"><span class="line-number">160</span><span class="line-code">    ax.set_xlabel("拦截批次比例 %"); ax.set_ylabel("低良率覆盖率")</span></div>
+<div class="code-line"><span class="line-number">161</span><span class="line-code">    ax.set_title("Top-k 拦截覆盖率曲线"); ax.legend()</span></div>
+<div class="code-line"><span class="line-number">162</span><span class="line-code">    fig.tight_layout(); fig.savefig(os.path.join(FIGURES, "topk_curve.png"), dpi=150)</span></div>
+<div class="code-line"><span class="line-number">163</span><span class="line-code">    plt.close(fig)</span></div>
+<div class="code-line"><span class="line-number">164</span><span class="line-code">    return clf, prob, yt</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第119-164行：classify() 函数</div>
+        <strong>第125行：</strong>计算正负样本数量。<code>y_tr == 0</code> 生成布尔数组，<code>.sum()</code> 计算True的个数（即负样本数）。<code>max(1, ...)</code> 防止除零。<br>
+        <strong>第126行：</strong><code>scale_pos_weight=neg/pos</code> 处理类别不平衡。如果负样本是正样本的10倍，则正样本权重×10，让模型更关注少数类。<code>eval_metric="aucpr"</code> 用PR-AUC做早停评估（比ROC-AUC更适合不平衡数据）。<br>
+        <strong>第131行：</strong><code>predict_proba()</code> 返回概率矩阵(n_samples, 2)。<code>[:, 1]</code> 取第2列（正类概率，即"低良率"的概率）。<br>
+        <strong>第133-134行：</strong>ROC-AUC衡量模型整体排序能力（0.5=随机，1.0=完美）。PR-AUC在不平衡数据下更敏感。<br>
+        <strong>第144行：</strong><code>np.argsort(prob)[::-1][:cutk]</code> 三步操作：argsort升序排列得到索引 → [::-1]反转为降序 → [:cutk]取前k个。结果是概率最高的k个样本的原始索引。<br>
+        <strong>第145行：</strong><code>yt[top]</code> 用索引数组取对应标签（高级索引），<code>.sum()</code> 计算其中有多少是真正的低良率样本。<br>
+        <strong>第150行：</strong><code>[i / 100 for i in range(5, 101, 5)]</code> 列表推导式，生成[0.05, 0.10, 0.15, ..., 1.00]的细粒度拦截比例。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>predict_proba()[:, 1]</strong>：numpy二维数组切片，[行切片, 列切片]。冒号表示"全部"</li>
+            <li><strong>np.argsort(arr)[::-1]</strong>：排序后反转 = 降序排列的索引。这是numpy中获取降序排名的惯用方法</li>
+            <li><strong>arr[index_array]</strong>：numpy高级索引——用索引数组取对应元素，返回新数组</li>
+            <li><strong>[expr for var in iterable]</strong>：列表推导式（list comprehension），Python最强大的列表构造语法</li>
+            <li><strong>range(start, stop, step)</strong>：生成整数序列，左闭右开[start, stop)</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>Top-k拦截覆盖率的业务含义</h5>
+        <p>假设产线有250片测试晶圆，其中50片是低良率。如果模型把风险最高的Top 50片（Top 20%）拦截下来，其中有多少是真正的低良率？覆盖率=拦截到的低良率/总低良率。随机拦截20%只能覆盖20%，模型好的话可以覆盖60%+。</p>
+    </div>
+</div>
+
+<!-- root_cause() -->
+<div class="section" id="main-rootcause">
+    <div class="section-header">
+        <h2><span class="badge">main.py</span>root_cause() SHAP根因分析</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第170-204行：root_cause() 函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">170</span><span class="line-code">def root_cause(best_model, X, cut):</span></div>
+<div class="code-line"><span class="line-number">171</span><span class="line-code">    print("\n===== 4. SHAP 根因分析 =====")</span></div>
+<div class="code-line"><span class="line-number">172</span><span class="line-code">    X_tr = X.iloc[:cut]</span></div>
+<div class="code-line"><span class="line-number">173</span><span class="line-code">    X_sample = X_tr.iloc[:300]  # 用训练集前 300 行（省时且稳定）</span></div>
+<div class="code-line"><span class="line-number">174</span><span class="line-code">    try:</span></div>
+<div class="code-line"><span class="line-number">175</span><span class="line-code">        import shap</span></div>
+<div class="code-line"><span class="line-number">176</span><span class="line-code">        explainer = shap.TreeExplainer(best_model)</span></div>
+<div class="code-line"><span class="line-number">177</span><span class="line-code">        sv = explainer.shap_values(X_sample)</span></div>
+<div class="code-line"><span class="line-number">178</span><span class="line-code">        if isinstance(sv, list):</span></div>
+<div class="code-line"><span class="line-number">179</span><span class="line-code">            sv = sv[-1]</span></div>
+<div class="code-line"><span class="line-number">180</span><span class="line-code">        if hasattr(sv, "ndim") and sv.ndim == 3:</span></div>
+<div class="code-line"><span class="line-number">181</span><span class="line-code">            sv = sv[:, :, 0] if sv.shape[2] == 1 else sv.mean(axis=2)</span></div>
+<div class="code-line"><span class="line-number">183</span><span class="line-code">        fig, ax = plt.subplots(figsize=(9, 7))</span></div>
+<div class="code-line"><span class="line-number">184</span><span class="line-code">        shap.summary_plot(sv, X_sample, show=False, max_display=15)</span></div>
+<div class="code-line"><span class="line-number">185</span><span class="line-code">        plt.title("SHAP 特征重要性（良率回归）")</span></div>
+<div class="code-line"><span class="line-number">186</span><span class="line-code">        fig.savefig(os.path.join(FIGURES, "shap_summary.png"), dpi=150, bbox_inches="tight")</span></div>
+<div class="code-line"><span class="line-number">187</span><span class="line-code">        plt.close(fig)</span></div>
+<div class="code-line"><span class="line-number">189</span><span class="line-code">        mean_abs = np.abs(sv).mean(axis=0)</span></div>
+<div class="code-line"><span class="line-number">190</span><span class="line-code">        top = np.argsort(mean_abs)[::-1][:10]</span></div>
+<div class="code-line"><span class="line-number">191</span><span class="line-code">        print("  Top 特征（SHAP 平均绝对贡献）:")</span></div>
+<div class="code-line"><span class="line-number">192</span><span class="line-code">        top_feats = []</span></div>
+<div class="code-line"><span class="line-number">193</span><span class="line-code">        for i, idx in enumerate(top):</span></div>
+<div class="code-line"><span class="line-number">194</span><span class="line-code">            feat = X_sample.columns[idx]</span></div>
+<div class="code-line"><span class="line-number">195</span><span class="line-code">            top_feats.append(feat)</span></div>
+<div class="code-line"><span class="line-number">196</span><span class="line-code">            print(f"    {i+1:2d}. {feat}  ({mean_abs[idx]:.4f})")</span></div>
+<div class="code-line"><span class="line-number">197</span><span class="line-code">        return top_feats</span></div>
+<div class="code-line"><span class="line-number">198</span><span class="line-code">    except Exception as e:</span></div>
+<div class="code-line"><span class="line-number">199</span><span class="line-code">        print(f"  SHAP 失败（{type(e).__name__}: {e}），改用内置重要性")</span></div>
+<div class="code-line"><span class="line-number">200</span><span class="line-code">        imp = best_model.feature_importances_</span></div>
+<div class="code-line"><span class="line-number">201</span><span class="line-code">        top = np.argsort(imp)[::-1][:10]</span></div>
+<div class="code-line"><span class="line-number">202</span><span class="line-code">        top_feats = [X_sample.columns[i] for i in top]</span></div>
+<div class="code-line"><span class="line-number">203</span><span class="line-code">        print("  Top 特征（内置重要性）:", ", ".join(top_feats))</span></div>
+<div class="code-line"><span class="line-number">204</span><span class="line-code">        return top_feats</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第170-204行：root_cause() 函数</div>
+        <strong>第173行：</strong>采样300行做SHAP分析。SHAP计算量大（每行需遍历特征组合），全量1000行太慢。<br>
+        <strong>第174-197行：</strong><code>try...except</code> 异常处理。如果shap库未安装或计算失败，降级到模型内置重要性。<br>
+        <strong>第176行：</strong><code>TreeExplainer</code> 专为树模型（XGBoost/RF/LightGBM）设计的SHAP解释器，利用树结构快速精确计算SHAP值。<br>
+        <strong>第177行：</strong><code>shap_values()</code> 返回SHAP值矩阵(n_samples, n_features)。每个值表示该特征对该样本预测的"贡献"（正/负方向）。<br>
+        <strong>第178-179行：</strong>某些版本的shap对二分类返回list[数组0, 数组1]，取最后一个（正类）。<br>
+        <strong>第180-181行：</strong>处理3维SHAP数组（某些版本返回(n_samples, n_features, n_classes)）。如果第3维=1则squeeze，否则取均值。<br>
+        <strong>第184行：</strong><code>summary_plot</code> 生成SHAP蜂群图——每个点是一个样本，颜色表示特征值高低，x轴位置表示SHAP值大小。<code>show=False</code> 阻止自动弹窗。<br>
+        <strong>第189行：</strong><code>np.abs(sv).mean(axis=0)</code> 对每个特征取SHAP绝对值的均值——衡量该特征的平均影响力大小（不分方向）。<br>
+        <strong>第193行：</strong><code>enumerate(top)</code> 同时获取索引位置i和值idx。i用于排名序号，idx用于取特征名。<br>
+        <strong>第198-204行：</strong>降级方案——使用XGBoost内置的<code>feature_importances_</code>（基于增益的特征重要性），虽然不如SHAP精确但计算快且无额外依赖。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>try...except Exception as e</strong>：异常处理。捕获所有异常并绑定到变量e。<code>type(e).__name__</code> 获取异常类名</li>
+            <li><strong>isinstance(obj, type)</strong>：类型检查。比 <code>type(obj) == list</code> 更安全（支持继承）</li>
+            <li><strong>hasattr(obj, "attr")</strong>：检查对象是否有某属性，避免AttributeError</li>
+            <li><strong>enumerate(iterable)</strong>：同时获取索引和值。<code>for i, val in enumerate(lst)</code> 等价于 <code>for i in range(len(lst)): val = lst[i]</code></li>
+            <li><strong>", ".join(list)</strong>：用指定分隔符连接字符串列表。比循环拼接高效得多</li>
+        </ul>
+    </div>
+</div>
+
+<!-- main() -->
+<div class="section" id="main-main">
+    <div class="section-header">
+        <h2><span class="badge">main.py</span>main() 主流程与业务闭环</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">main.py 第210-236行：main() 函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">210</span><span class="line-code">def main():</span></div>
+<div class="code-line"><span class="line-number">211</span><span class="line-code">    print("=" * 64)</span></div>
+<div class="code-line"><span class="line-number">212</span><span class="line-code">    print("半导体晶圆良率建模分析")</span></div>
+<div class="code-line"><span class="line-number">213</span><span class="line-code">    print("=" * 64)</span></div>
+<div class="code-line"><span class="line-number">214</span><span class="line-code">    X, y_reg, y_cls, cut = prepare()</span></div>
+<div class="code-line"><span class="line-number">215</span><span class="line-code">    reg_results, best = regress(X, y_reg, cut)</span></div>
+<div class="code-line"><span class="line-number">216</span><span class="line-code">    clf, prob, y_te = classify(X, y_cls, cut)</span></div>
+<div class="code-line"><span class="line-number">217</span><span class="line-code">    top_feats = root_cause(reg_results[best]["model"], X, cut)</span></div>
+<div class="code-line"><span class="line-number">219</span><span class="line-code">    print("\n===== 业务闭环 =====")</span></div>
+<div class="code-line"><span class="line-number">220</span><span class="line-code">    print(f"  1) 良率预测：{best} 测试 R²=...")</span></div>
+<div class="code-line"><span class="line-number">222</span><span class="line-code">    # 重算 Top20% 拦截覆盖率用于闭环输出</span></div>
+<div class="code-line"><span class="line-number">223</span><span class="line-code">    yt = np.asarray(y_cls[cut:])</span></div>
+<div class="code-line"><span class="line-number">224</span><span class="line-code">    n_fail = max(1, int(yt.sum()))</span></div>
+<div class="code-line"><span class="line-number">225</span><span class="line-code">    cutk = max(1, int(len(yt) * 0.20))</span></div>
+<div class="code-line"><span class="line-number">226</span><span class="line-code">    top = np.argsort(prob)[::-1][:cutk]</span></div>
+<div class="code-line"><span class="line-number">227</span><span class="line-code">    cov20 = yt[top].sum() / n_fail</span></div>
+<div class="code-line"><span class="line-number">228</span><span class="line-code">    print(f"  2) 低良率拦截：按风险分拦截 Top 20% 批次覆盖 {cov20:.2f} 的低良率")</span></div>
+<div class="code-line"><span class="line-number">230</span><span class="line-code">    print(f"  3) 根因 Top 参数: {', '.join(top_feats[:5])} → 纳入 FDC/SPC 监控")</span></div>
+<div class="code-line"><span class="line-number">231</span><span class="line-code">    print(f"  4) 关键参数做 DOE + 贝叶斯优化找最优工艺窗口")</span></div>
+<div class="code-line"><span class="line-number">235</span><span class="line-code">if __name__ == "__main__":</span></div>
+<div class="code-line"><span class="line-number">236</span><span class="line-code">    main()</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">main.py 第210-236行：main() 函数</div>
+        <strong>第214-217行：</strong>按顺序调用4个函数，前一步的输出作为后一步的输入。数据流清晰：prepare→regress→classify→root_cause。<br>
+        <strong>第217行：</strong><code>reg_results[best]["model"]</code> 从字典中取出最佳模型对象，传给SHAP分析。<br>
+        <strong>第235-236行：</strong><code>if __name__ == "__main__":</code> Python标准入口模式。当脚本被直接运行时 <code>__name__</code> 等于 <code>"__main__"</code>；当被其他模块import时不执行。防止import时意外运行main()。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>"=" * 64</strong>：字符串重复操作，生成64个"="组成的分隔线</li>
+            <li><strong>if __name__ == "__main__":</strong>：Python脚本的标准入口保护。直接运行脚本时执行main()，被import时不执行</li>
+            <li><strong>字典嵌套访问 results[best]["model"]</strong>：先用键取外层字典的值（字典），再用键取内层字典的值</li>
+        </ul>
+    </div>
+    <div class="logic-flow">
+        <h5>main.py 完整数据流</h5>
+        <ol>
+            <li>prepare() → X(特征矩阵), y_reg(回归目标), y_cls(分类目标), cut(切分点)</li>
+            <li>regress(X, y_reg, cut) → 两个模型的预测结果 + 最佳模型名称</li>
+            <li>classify(X, y_cls, cut) → 分类器 + 风险概率 + 真实标签</li>
+            <li>root_cause(最佳模型, X, cut) → Top特征列表（传给SPC和DOE模块）</li>
+            <li>业务闭环输出 → 将分析结果翻译为"工艺语言"的监控建议</li>
+        </ol>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- spc_analysis.py 代码详解 -->
+<!-- ================================================================ -->
+<div class="section" id="spc-config">
+    <div class="section-header">
+        <h2><span class="badge">spc_analysis.py</span>全局配置与常数表</h2>
+    </div>
+    <div class="file-overview">
+        <h4>文件职责</h4>
+        <p>SPC统计过程控制模块：绘制Xbar-R控制图（Minitab工业标准格式）、计算过程能力指数(Cp/Cpk/Pp/Ppk)、识别失控点(OOC)并模拟FDC自动Hold批次逻辑。</p>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">spc_analysis.py 第1-103行：导入、路径、SPC常数表</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">1</span><span class="line-code"># -*- coding: utf-8 -*-</span></div>
+<div class="code-line"><span class="line-number">3</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">4</span><span class="line-code">SPC 统计过程控制 + 过程能力分析（Cpk / Ppk）</span></div>
+<div class="code-line"><span class="line-number">5</span><span class="line-code">===================================================</span></div>
+<div class="code-line"><span class="line-number">6</span><span class="line-code">工业背景</span></div>
+<div class="code-line"><span class="line-number">7</span><span class="line-code">--------</span></div>
+<div class="code-line"><span class="line-number">8</span><span class="line-code">半导体产线需要实时监控关键工艺参数是否"受控"：</span></div>
+<div class="code-line"><span class="line-number">9</span><span class="line-code">  - 控制图（Control Chart）：判断过程是否稳定，有无异常波动</span></div>
+<div class="code-line"><span class="line-number">10</span><span class="line-code">  - 过程能力（Cpk / Ppk）：衡量过程输出是否满足规格要求</span></div>
+<div class="code-line"><span class="line-number">11</span><span class="line-code">    - Cpk（短期能力）：基于组内变异（within-subgroup），反映"最佳状态"</span></div>
+<div class="code-line"><span class="line-number">12</span><span class="line-code">    - Ppk（长期性能）：基于整体变异（overall），反映"实际表现"</span></div>
+<div class="code-line"><span class="line-number">13</span><span class="line-code">    - Cpk > 1.33 通常认为过程能力充足（6Sigma 标准）</span></div>
+<div class="code-line"><span class="line-number">14</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">31</span><span class="line-code">import os</span></div>
+<div class="code-line"><span class="line-number">32</span><span class="line-code">import numpy as np</span></div>
+<div class="code-line"><span class="line-number">33</span><span class="line-code">import pandas as pd</span></div>
+<div class="code-line"><span class="line-number">34</span><span class="line-code">import matplotlib</span></div>
+<div class="code-line"><span class="line-number">35</span><span class="line-code">matplotlib.use("Agg")</span></div>
+<div class="code-line"><span class="line-number">36</span><span class="line-code">import matplotlib.pyplot as plt</span></div>
+<div class="code-line"><span class="line-number">37</span><span class="line-code">from matplotlib.patches import Rectangle</span></div>
+<div class="code-line"><span class="line-number">38</span><span class="line-code">from scipy import stats</span></div>
+<div class="code-line"><span class="line-number">59</span><span class="line-code">KEY_PARAMS = ["critical_dimension", "oxide_thickness", "vth"]</span></div>
+<div class="code-line"><span class="line-number">64</span><span class="line-code">SPEC_LIMITS = {</span></div>
+<div class="code-line"><span class="line-number">65</span><span class="line-code">    "critical_dimension": {"LSL": 15.0, "USL": 35.0},</span></div>
+<div class="code-line"><span class="line-number">66</span><span class="line-code">    "oxide_thickness": {"LSL": 45.0, "USL": 70.0},</span></div>
+<div class="code-line"><span class="line-number">67</span><span class="line-code">    "vth": {"LSL": 0.50, "USL": 0.80},</span></div>
+<div class="code-line"><span class="line-number">68</span><span class="line-code">}</span></div>
+<div class="code-line"><span class="line-number">73</span><span class="line-code">SPC_CONSTANTS = {</span></div>
+<div class="code-line"><span class="line-number">74</span><span class="line-code">    2:  {"A2": 1.880, "D3": 0,    "D4": 3.267, "d2": 1.128},</span></div>
+<div class="code-line"><span class="line-number">75</span><span class="line-code">    3:  {"A2": 1.023, "D3": 0,    "D4": 2.575, "d2": 1.693},</span></div>
+<div class="code-line"><span class="line-number">76</span><span class="line-code">    4:  {"A2": 0.729, "D3": 0,    "D4": 2.282, "d2": 2.059},</span></div>
+<div class="code-line"><span class="line-number">77</span><span class="line-code">    5:  {"A2": 0.577, "D3": 0,    "D4": 2.114, "d2": 2.326},</span></div>
+<div class="code-line"><span class="line-number">78</span><span class="line-code">    # ... 省略 6-25 的子组大小</span></div>
+<div class="code-line"><span class="line-number">84</span><span class="line-code">}</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">spc_analysis.py 第1-103行：导入、路径、SPC常数表</div>
+        <strong>第37行：</strong><code>from matplotlib.patches import Rectangle</code> 导入矩形绘图原语，用于在控制图中标注特殊区域（虽然本文件未直接使用，但为扩展预留）。<br>
+        <strong>第38行：</strong><code>from scipy import stats</code> 导入scipy统计模块，用于正态性检验（Shapiro-Wilk / D'Agostino-Pearson）和正态分布PDF计算。<br>
+        <strong>第59行：</strong>KEY_PARAMS——SHAP分析识别出的3个最关键工艺参数。SPC只监控这些参数（而非全部18个），聚焦资源。<br>
+        <strong>第64-68行：</strong>SPEC_LIMITS——工程规格限（Specification Limits）。LSL(下规格限)和USL(上规格限)是工艺设计的硬性边界，超出即不合格。<br>
+        <strong>第73-84行：</strong>SPC_CONSTANTS——Xbar-R控制图的标准常数表。A2、D3、D4、d2是统计学推导的系数，取决于子组大小n。例如n=5时：A2=0.577用于计算控制限，d2=2.326用于估计标准差。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>嵌套字典</strong>：<code>{"key": {"inner_key": value}}</code>，通过 <code>d["key"]["inner_key"]</code> 访问</li>
+            <li><strong>字典的键可以是整数</strong>：<code>SPC_CONSTANTS[5]</code>，子组大小n作为键直接查找常数</li>
+            <li><strong>from X import Y</strong>：从模块中导入特定名称，避免导入整个模块</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>SPC工业背景</h5>
+        <p><strong>Cpk vs Ppk</strong>：Cpk用组内标准差（within-subgroup σ），反映"如果过程中心不变，最佳能做到什么程度"；Ppk用整体标准差（overall σ），反映"实际表现包括中心漂移"。Cpk≥1.33是6Sigma标准的"充足"门槛。<br>
+        <strong>Xbar-R图</strong>：Xbar图监控过程中心（均值）是否漂移，R图监控过程波动（极差）是否稳定。两张图必须同时看——R图失控时Xbar图的控制限无效。</p>
+    </div>
+</div>
+
+<!-- prepare_subgroups() -->
+<div class="section" id="spc-subgroups">
+    <div class="section-header">
+        <h2><span class="badge">spc_analysis.py</span>prepare_subgroups() 数据分组</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">spc_analysis.py 第108-123行：按批次分组</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">108</span><span class="line-code">def prepare_subgroups():</span></div>
+<div class="code-line"><span class="line-number">109</span><span class="line-code">    """按 lot_id 分组，每个 lot 包含多片 wafer。"""</span></div>
+<div class="code-line"><span class="line-number">110</span><span class="line-code">    print("===== 1. 数据准备（按批次分组）=====")</span></div>
+<div class="code-line"><span class="line-number">111</span><span class="line-code">    df = pd.read_csv(os.path.join(DATA, "semiconductor_yield_forecasting_data.csv"))</span></div>
+<div class="code-line"><span class="line-number">112</span><span class="line-code">    print(f"  总数据: {len(df)} 行（晶圆级）")</span></div>
+<div class="code-line"><span class="line-number">114</span><span class="line-code">    grouped = df.groupby("lot_id")</span></div>
+<div class="code-line"><span class="line-number">115</span><span class="line-code">    n_lots = grouped.ngroups</span></div>
+<div class="code-line"><span class="line-number">116</span><span class="line-code">    avg_wafers = len(df) / n_lots</span></div>
+<div class="code-line"><span class="line-number">117</span><span class="line-code">    print(f"  批次数: {n_lots}，每批平均 {avg_wafers:.1f} 片晶圆")</span></div>
+<div class="code-line"><span class="line-number">119</span><span class="line-code">    subgroups = {}</span></div>
+<div class="code-line"><span class="line-number">120</span><span class="line-code">    for param in KEY_PARAMS:</span></div>
+<div class="code-line"><span class="line-number">121</span><span class="line-code">        subgroups[param] = grouped[param].apply(list).to_dict()</span></div>
+<div class="code-line"><span class="line-number">123</span><span class="line-code">    return subgroups, n_lots</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">spc_analysis.py 第108-123行：按批次分组</div>
+        <strong>第114行：</strong><code>df.groupby("lot_id")</code> 按批次号分组，返回GroupBy对象（惰性操作，不立即计算）。<br>
+        <strong>第115行：</strong><code>grouped.ngroups</code> 获取分组数量（有多少个不同的lot_id）。<br>
+        <strong>第121行：</strong><code>grouped[param].apply(list)</code> 对每个lot的param列应用list函数，将该lot的所有值转为列表。<code>.to_dict()</code> 转为字典 {lot_id: [values...]}。结果结构：<code>{"critical_dimension": {"LOT001": [25.1, 25.3, ...], "LOT002": [...]}}</code>
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>df.groupby(col)</strong>：pandas分组操作，类似SQL的GROUP BY。返回GroupBy对象（惰性）</li>
+            <li><strong>.apply(func)</strong>：对每个分组应用函数。list将Series转为Python列表</li>
+            <li><strong>.to_dict()</strong>：Series/DataFrame → Python字典</li>
+            <li><strong>.ngroups</strong>：GroupBy对象的属性（不是方法），返回分组数</li>
+        </ul>
+    </div>
+</div>
+
+<!-- xbar_r_chart() -->
+<div class="section" id="spc-xbar">
+    <div class="section-header">
+        <h2><span class="badge">spc_analysis.py</span>xbar_r_chart() Xbar-R控制图</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">spc_analysis.py 第129-302行：Xbar-R控制图（核心函数）</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">129</span><span class="line-code">def xbar_r_chart(subgroups, param):</span></div>
+<div class="code-line"><span class="line-number">137</span><span class="line-code">    lots = sorted(subgroups[param].keys())</span></div>
+<div class="code-line"><span class="line-number">138</span><span class="line-code">    X_subgroups = [subgroups[param][lot] for lot in lots]</span></div>
+<div class="code-line"><span class="line-number">140</span><span class="line-code">    Xbar = np.array([np.mean(x) for x in X_subgroups])</span></div>
+<div class="code-line"><span class="line-number">141</span><span class="line-code">    R = np.array([np.max(x) - np.min(x) for x in X_subgroups])</span></div>
+<div class="code-line"><span class="line-number">142</span><span class="line-code">    n = np.array([len(x) for x in X_subgroups])</span></div>
+<div class="code-line"><span class="line-number">143</span><span class="line-code">    n_subgroup = int(np.median(n))</span></div>
+<div class="code-line"><span class="line-number">145</span><span class="line-code">    # 查找 SPC 常数</span></div>
+<div class="code-line"><span class="line-number">146</span><span class="line-code">    consts = SPC_CONSTANTS.get(n_subgroup, SPC_CONSTANTS[5])</span></div>
+<div class="code-line"><span class="line-number">147</span><span class="line-code">    A2, D3, D4, d2 = consts["A2"], consts["D3"], consts["D4"], consts["d2"]</span></div>
+<div class="code-line"><span class="line-number">149</span><span class="line-code">    # 中心线</span></div>
+<div class="code-line"><span class="line-number">150</span><span class="line-code">    Xbar_bar = np.mean(Xbar)</span></div>
+<div class="code-line"><span class="line-number">151</span><span class="line-code">    R_bar = np.mean(R)</span></div>
+<div class="code-line"><span class="line-number">153</span><span class="line-code">    # 控制限</span></div>
+<div class="code-line"><span class="line-number">154</span><span class="line-code">    UCL_Xbar = Xbar_bar + A2 * R_bar</span></div>
+<div class="code-line"><span class="line-number">155</span><span class="line-code">    LCL_Xbar = Xbar_bar - A2 * R_bar</span></div>
+<div class="code-line"><span class="line-number">156</span><span class="line-code">    UCL_R = D4 * R_bar</span></div>
+<div class="code-line"><span class="line-number">157</span><span class="line-code">    LCL_R = D3 * R_bar</span></div>
+<div class="code-line"><span class="line-number">159</span><span class="line-code">    # 标准差估计（用于区域着色）</span></div>
+<div class="code-line"><span class="line-number">160</span><span class="line-code">    sigma_within = R_bar / d2</span></div>
+<div class="code-line"><span class="line-number">162</span><span class="line-code">    # 失控点识别</span></div>
+<div class="code-line"><span class="line-number">163</span><span class="line-code">    ooc_xbar = (Xbar > UCL_Xbar) | (Xbar < LCL_Xbar)</span></div>
+<div class="code-line"><span class="line-number">164</span><span class="line-code">    ooc_r = (R > UCL_R) | (R < LCL_R)</span></div>
+<div class="code-line"><span class="line-number">165</span><span class="line-code">    n_ooc = int(ooc_xbar.sum()) + int(ooc_r.sum())</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">spc_analysis.py 第129-302行：Xbar-R控制图（核心函数）</div>
+        <strong>第137行：</strong><code>sorted(subgroups[param].keys())</code> 获取所有lot_id并排序，确保绘图时x轴按时间顺序。<br>
+        <strong>第138行：</strong>列表推导式，按lot顺序提取每个子组的数据列表。<br>
+        <strong>第140行：</strong><code>np.mean(x)</code> 计算每个lot的均值 → Xbar图的y值。<br>
+        <strong>第141行：</strong><code>np.max(x) - np.min(x)</code> 计算每个lot的极差 → R图的y值。极差是衡量组内变异的最简单方法。<br>
+        <strong>第143行：</strong><code>np.median(n)</code> 取子组大小的中位数（作为代表n）。如果各lot晶圆数不一致，用中位数最稳健。<br>
+        <strong>第146行：</strong><code>dict.get(key, default)</code> 安全取字典值——如果n_subgroup不在常数表中，默认用n=5的常数。<br>
+        <strong>第147行：</strong>多元赋值（tuple unpacking）——同时给4个变量赋值。<br>
+        <strong>第150-151行：</strong>Xbar_bar（总均值）和R_bar（平均极差）是控制图的中心线(CL)。<br>
+        <strong>第154-157行：</strong>控制限计算公式（SPC标准公式）：<br>
+        &nbsp;&nbsp;• UCL_Xbar = Xbar_bar + A2 × R_bar（Xbar图控制上限）<br>
+        &nbsp;&nbsp;• LCL_Xbar = Xbar_bar - A2 × R_bar（Xbar图控制下限）<br>
+        &nbsp;&nbsp;• UCL_R = D4 × R_bar（R图控制上限）<br>
+        &nbsp;&nbsp;• LCL_R = D3 × R_bar（R图控制下限）<br>
+        <strong>第160行：</strong><code>sigma_within = R_bar / d2</code> 用极差法估计组内标准差。d2是与n相关的常数。<br>
+        <strong>第163-164行：</strong>失控点识别——超出控制限的点。<code>|</code> 是numpy的逐元素OR运算符（不是Python的<code>or</code>）。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>dict.get(key, default)</strong>：安全取字典值，key不存在时返回default而不报错</li>
+            <li><strong>A, B, C = x, y, z</strong>：多元赋值（解包），右边可以是tuple/list/任何可迭代对象</li>
+            <li><strong>numpy的 | 运算符</strong>：逐元素逻辑OR（对应&是AND，~是NOT）。Python的<code>or</code>不能用于数组</li>
+            <li><strong>列表推导式嵌套</strong>：<code>[np.mean(x) for x in list_of_lists]</code> 对外层列表的每个元素（本身是列表）计算均值</li>
+        </ul>
+    </div>
+    <div class="logic-flow">
+        <h5>Xbar-R控制图计算流程</h5>
+        <ol>
+            <li>按lot分组 → 每个lot计算均值(Xbar)和极差(R)</li>
+            <li>计算总均值(Xbar_bar)和平均极差(R_bar) → 中心线</li>
+            <li>查SPC常数表 → 用公式计算控制限(UCL/LCL)</li>
+            <li>识别超出控制限的点 → 标记为失控点(OOC)</li>
+            <li>绘制两张子图：Xbar图（均值监控）+ R图（波动监控）</li>
+        </ol>
+    </div>
+</div>
+
+<!-- capability_analysis() -->
+<div class="section" id="spc-capability">
+    <div class="section-header">
+        <h2><span class="badge">spc_analysis.py</span>capability_analysis() 过程能力分析</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">spc_analysis.py 第308-467行：Cp/Cpk/Pp/Ppk计算</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">308</span><span class="line-code">def capability_analysis(df, param):</span></div>
+<div class="code-line"><span class="line-number">314</span><span class="line-code">    spec = SPEC_LIMITS[param]</span></div>
+<div class="code-line"><span class="line-number">315</span><span class="line-code">    LSL, USL = spec["LSL"], spec["USL"]</span></div>
+<div class="code-line"><span class="line-number">317</span><span class="line-code">    data = df[param].values</span></div>
+<div class="code-line"><span class="line-number">318</span><span class="line-code">    n = len(data)</span></div>
+<div class="code-line"><span class="line-number">320</span><span class="line-code">    mu = np.mean(data)</span></div>
+<div class="code-line"><span class="line-number">321</span><span class="line-code">    sigma_overall = np.std(data, ddof=1)</span></div>
+<div class="code-line"><span class="line-number">323</span><span class="line-code">    # 短期标准差</span></div>
+<div class="code-line"><span class="line-number">324</span><span class="line-code">    grouped = df.groupby("lot_id")[param].apply(list)</span></div>
+<div class="code-line"><span class="line-number">325</span><span class="line-code">    R_values = [np.max(x) - np.min(x) for x in grouped]</span></div>
+<div class="code-line"><span class="line-number">326</span><span class="line-code">    R_bar = np.mean(R_values)</span></div>
+<div class="code-line"><span class="line-number">327</span><span class="line-code">    n_subgroup = int(np.median([len(x) for x in grouped]))</span></div>
+<div class="code-line"><span class="line-number">328</span><span class="line-code">    consts = SPC_CONSTANTS.get(n_subgroup, SPC_CONSTANTS[5])</span></div>
+<div class="code-line"><span class="line-number">329</span><span class="line-code">    d2 = consts["d2"]</span></div>
+<div class="code-line"><span class="line-number">330</span><span class="line-code">    sigma_within = R_bar / d2</span></div>
+<div class="code-line"><span class="line-number">332</span><span class="line-code">    # 过程能力指数</span></div>
+<div class="code-line"><span class="line-number">333</span><span class="line-code">    Cp = (USL - LSL) / (6 * sigma_within)</span></div>
+<div class="code-line"><span class="line-number">334</span><span class="line-code">    Cpk = min((USL - mu) / (3 * sigma_within), (mu - LSL) / (3 * sigma_within))</span></div>
+<div class="code-line"><span class="line-number">335</span><span class="line-code">    Pp = (USL - LSL) / (6 * sigma_overall)</span></div>
+<div class="code-line"><span class="line-number">336</span><span class="line-code">    Ppk = min((USL - mu) / (3 * sigma_overall), (mu - LSL) / (3 * sigma_overall))</span></div>
+<div class="code-line"><span class="line-number">338</span><span class="line-code">    # 正态性检验</span></div>
+<div class="code-line"><span class="line-number">339</span><span class="line-code">    if n > 5000:</span></div>
+<div class="code-line"><span class="line-number">340</span><span class="line-code">        stat, p_value = stats.normaltest(data)</span></div>
+<div class="code-line"><span class="line-number">341</span><span class="line-code">        test_name = "D'Agostino-Pearson"</span></div>
+<div class="code-line"><span class="line-number">342</span><span class="line-code">    else:</span></div>
+<div class="code-line"><span class="line-number">343</span><span class="line-code">        stat, p_value = stats.shapiro(data)</span></div>
+<div class="code-line"><span class="line-number">344</span><span class="line-code">        test_name = "Shapiro-Wilk"</span></div>
+<div class="code-line"><span class="line-number">345</span><span class="line-code">    is_normal = p_value > 0.05</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">spc_analysis.py 第308-467行：Cp/Cpk/Pp/Ppk计算</div>
+        <strong>第315行：</strong><code>LSL, USL = spec["LSL"], spec["USL"]</code> 从字典取出规格限。LSL=Lower Spec Limit，USL=Upper Spec Limit。<br>
+        <strong>第321行：</strong><code>np.std(data, ddof=1)</code> 计算样本标准差。<code>ddof=1</code> 表示Delta Degrees of Freedom=1，即除以n-1（样本标准差），而非n（总体标准差）。<br>
+        <strong>第330行：</strong><code>sigma_within = R_bar / d2</code> 用极差法估计组内标准差。这是SPC经典方法，比直接计算组内标准差更稳健。<br>
+        <strong>第333行：</strong><code>Cp = (USL - LSL) / (6σ)</code> 过程潜力指数——假设过程中心完美对准目标值时的能力。6σ代表±3σ范围（覆盖99.73%数据）。<br>
+        <strong>第334行：</strong><code>Cpk = min((USL-μ)/3σ, (μ-LSL)/3σ)</code> 实际过程能力指数——考虑了过程中心偏移。取两侧较小值（最薄弱环节）。<br>
+        <strong>第335-336行：</strong>Pp/Ppk与Cp/Cpk公式相同，但用sigma_overall（整体标准差）替代sigma_within（组内标准差）。Ppk反映长期实际表现。<br>
+        <strong>第339-345行：</strong>正态性检验——Cpk计算的前提是数据近似正态分布。n>5000用D'Agostino-Pearson检验（适合大样本），否则用Shapiro-Wilk检验（小样本更准确）。p_value>0.05认为数据正态。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>np.std(data, ddof=1)</strong>：ddof参数控制自由度修正。ddof=0是总体标准差（默认），ddof=1是样本标准差</li>
+            <li><strong>min(a, b)</strong>：Python内置函数，返回两个值中的较小值</li>
+            <li><strong>if...else条件赋值</strong>：<code>is_normal = p_value > 0.05</code> 布尔表达式直接赋值</li>
+            <li><strong>stats.shapiro / normaltest</strong>：返回(statistic, p_value)元组，用多元赋值接收</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>Cpk判标标准</h5>
+        <p>• Cpk < 1.0：过程能力不足，需改进<br>
+        • 1.0 ≤ Cpk < 1.33：过程能力可接受，需监控<br>
+        • 1.33 ≤ Cpk < 1.67：过程能力充足（6Sigma标准）<br>
+        • Cpk ≥ 1.67：过程能力优秀</p>
+    </div>
+</div>
+
+<!-- ooc_analysis() -->
+<div class="section" id="spc-ooc">
+    <div class="section-header">
+        <h2><span class="badge">spc_analysis.py</span>ooc_analysis() 失控点分析</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">spc_analysis.py 第473-541行：FDC自动Hold模拟</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">473</span><span class="line-code">def ooc_analysis(df, spc_results):</span></div>
+<div class="code-line"><span class="line-number">480</span><span class="line-code">    ooc_lots = set()</span></div>
+<div class="code-line"><span class="line-number">481</span><span class="line-code">    ooc_details = []</span></div>
+<div class="code-line"><span class="line-number">482</span><span class="line-code">    for res in spc_results:</span></div>
+<div class="code-line"><span class="line-number">483</span><span class="line-code">        param = res["param"]</span></div>
+<div class="code-line"><span class="line-number">484</span><span class="line-code">        UCL, LCL = res["UCL_Xbar"], res["LCL_Xbar"]</span></div>
+<div class="code-line"><span class="line-number">486</span><span class="line-code">        lot_means = df.groupby("lot_id")[param].mean()</span></div>
+<div class="code-line"><span class="line-number">487</span><span class="line-code">        ooc_high = lot_means > UCL</span></div>
+<div class="code-line"><span class="line-number">488</span><span class="line-code">        ooc_low = lot_means < LCL</span></div>
+<div class="code-line"><span class="line-number">489</span><span class="line-code">        ooc_lots.update(lot_means[ooc_high].index.tolist())</span></div>
+<div class="code-line"><span class="line-number">490</span><span class="line-code">        ooc_lots.update(lot_means[ooc_low].index.tolist())</span></div>
+<div class="code-line"><span class="line-number">497</span><span class="line-code">    n_ooc_lots = len(ooc_lots)</span></div>
+<div class="code-line"><span class="line-number">498</span><span class="line-code">    n_total_lots = df["lot_id"].nunique()</span></div>
+<div class="code-line"><span class="line-number">499</span><span class="line-code">    ooc_rate = n_ooc_lots / n_total_lots</span></div>
+<div class="code-line"><span class="line-number">501</span><span class="line-code">    df_ooc = df[df["lot_id"].isin(ooc_lots)]</span></div>
+<div class="code-line"><span class="line-number">502</span><span class="line-code">    df_normal = df[~df["lot_id"].isin(ooc_lots)]</span></div>
+<div class="code-line"><span class="line-number">504</span><span class="line-code">    yield_ooc = df_ooc["yield"].mean()</span></div>
+<div class="code-line"><span class="line-number">505</span><span class="line-code">    yield_normal = df_normal["yield"].mean() if len(df_normal) > 0 else None</span></div>
+<div class="code-line"><span class="line-number">506</span><span class="line-code">    yield_gap = (yield_normal - yield_ooc) if yield_normal is not None else None</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">spc_analysis.py 第473-541行：FDC自动Hold模拟</div>
+        <strong>第480行：</strong><code>set()</code> 创建空集合。集合自动去重，适合存储失控lot（一个lot可能多个参数失控，但只计一次）。<br>
+        <strong>第486行：</strong><code>df.groupby("lot_id")[param].mean()</code> 计算每个lot的参数均值，返回Series（index=lot_id, values=均值）。<br>
+        <strong>第487-488行：</strong>布尔索引——找出超出UCL或低于LCL的lot。<br>
+        <strong>第489-490行：</strong><code>.index.tolist()</code> 取Series的索引（lot_id）转为Python列表。<code>set.update(list)</code> 将列表元素添加到集合。<br>
+        <strong>第498行：</strong><code>df["lot_id"].nunique()</code> 计算lot_id的唯一值数量（总批次数）。<br>
+        <strong>第501行：</strong><code>df["lot_id"].isin(ooc_lots)</code> 返回布尔数组——lot_id是否在失控集合中。<code>~</code> 是numpy的逐元素NOT运算符。<br>
+        <strong>第505行：</strong>三元表达式（条件表达式）：<code>value_if_true if condition else value_if_false</code>。如果df_normal为空（所有lot都失控），返回None。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>set()</strong>：Python集合，无序、不重复。支持update/add/intersection/union等操作</li>
+            <li><strong>.isin(list)</strong>：pandas方法，检查每个元素是否在列表中，返回布尔数组</li>
+            <li><strong>~boolean_array</strong>：numpy逐元素NOT（取反）。<code>~(A > 5)</code> 等价于 <code>A <= 5</code></li>
+            <li><strong>A if condition else B</strong>：Python三元表达式（条件表达式），一行完成if-else赋值</li>
+            <li><strong>.nunique()</strong>：pandas方法，计算唯一值数量（类似SQL的COUNT(DISTINCT)）</li>
+        </ul>
+    </div>
+</div>
+
+<!-- spc main() -->
+<div class="section" id="spc-main">
+    <div class="section-header">
+        <h2><span class="badge">spc_analysis.py</span>main() 主流程</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">spc_analysis.py 第547-600行：串联SPC分析流程</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">547</span><span class="line-code">def main():</span></div>
+<div class="code-line"><span class="line-number">552</span><span class="line-code">    subgroups, n_lots = prepare_subgroups()</span></div>
+<div class="code-line"><span class="line-number">554</span><span class="line-code">    print("\n===== 2. Xbar-R 控制图 =====")</span></div>
+<div class="code-line"><span class="line-number">555</span><span class="line-code">    spc_results = []</span></div>
+<div class="code-line"><span class="line-number">556</span><span class="line-code">    for param in KEY_PARAMS:</span></div>
+<div class="code-line"><span class="line-number">557</span><span class="line-code">        res = xbar_r_chart(subgroups, param)</span></div>
+<div class="code-line"><span class="line-number">558</span><span class="line-code">        spc_results.append(res)</span></div>
+<div class="code-line"><span class="line-number">562</span><span class="line-code">    print("\n===== 3. 过程能力分析（Cp / Cpk / Pp / Ppk）=====")</span></div>
+<div class="code-line"><span class="line-number">563</span><span class="line-code">    df = pd.read_csv(os.path.join(DATA, "semiconductor_yield_forecasting_data.csv"))</span></div>
+<div class="code-line"><span class="line-number">564</span><span class="line-code">    cap_results = []</span></div>
+<div class="code-line"><span class="line-number">565</span><span class="line-code">    for param in KEY_PARAMS:</span></div>
+<div class="code-line"><span class="line-number">566</span><span class="line-code">        res = capability_analysis(df, param)</span></div>
+<div class="code-line"><span class="line-number">567</span><span class="line-code">        cap_results.append(res)</span></div>
+<div class="code-line"><span class="line-number">582</span><span class="line-code">    ooc_res = ooc_analysis(df, spc_results)</span></div>
+<div class="code-line"><span class="line-number">584</span><span class="line-code">    print("\n===== 业务闭环总结 =====")</span></div>
+<div class="code-line"><span class="line-number">585</span><span class="line-code">    print(f"  1) SPC 控制图: {len(KEY_PARAMS)} 个关键参数已绘制 Xbar-R 图")</span></div>
+<div class="code-line"><span class="line-number">586</span><span class="line-code">    print(f"  2) 过程能力: Cpk 范围 [{min(r['Cpk'] for r in cap_results):.2f}, "</span></div>
+<div class="code-line"><span class="line-number">587</span><span class="line-code">          f"{max(r['Cpk'] for r in cap_results):.2f}]")</span></div>
+<div class="code-line"><span class="line-number">591</span><span class="line-code">    print(f"  4) 与 DOE 闭环: 对 Cpk < 1.33 的参数做 DOE 寻优（optimize.py），"</span></div>
+<div class="code-line"><span class="line-number">592</span><span class="line-code">          f"提升过程能力至 1.33 以上")</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">spc_analysis.py 第547-600行：串联SPC分析流程</div>
+        <strong>第552行：</strong>调用prepare_subgroups()获取分组数据。<br>
+        <strong>第556-558行：</strong>循环为每个关键参数绘制Xbar-R控制图，结果存入列表。<br>
+        <strong>第565-567行：</strong>循环为每个关键参数计算过程能力指数。<br>
+        <strong>第582行：</strong>调用ooc_analysis()分析失控点及其对良率的影响。<br>
+        <strong>第586-587行：</strong><code>min(r['Cpk'] for r in cap_results)</code> 生成器表达式——类似列表推导式但不创建中间列表，节省内存。<code>min()</code> 和 <code>max()</code> 可以直接接受生成器。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>生成器表达式</strong>：<code>(expr for var in iterable)</code> 圆括号而非方括号，惰性求值，不创建完整列表</li>
+            <li><strong>min/max接受生成器</strong>：<code>min(x for x in ...)</code> 不需要先转为列表</li>
+            <li><strong>列表的append()</strong>：向列表末尾添加元素，O(1)时间复杂度</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- optimize.py 代码详解 -->
+<!-- ================================================================ -->
+<div class="section" id="opt-surrogate">
+    <div class="section-header">
+        <h2><span class="badge">optimize.py</span>代理模型 build_surrogate()</h2>
+    </div>
+    <div class="file-overview">
+        <h4>文件职责</h4>
+        <p>工艺参数优化模块：DOE实验设计(LHS采样) + 贝叶斯优化(GP+EI) + Pareto多目标优化(yield+Cpk)。工业背景：真实产线实验成本极高，不能暴力网格搜索，需要用代理模型+智能采样高效寻优。</p>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">optimize.py 第95-118行：代理模型构建</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">95</span><span class="line-code">def build_surrogate():</span></div>
+<div class="code-line"><span class="line-number">96</span><span class="line-code">    """用历史数据训练 yield 回归模型作为产线仿真器"""</span></div>
+<div class="code-line"><span class="line-number">97</span><span class="line-code">    df = pd.read_csv(os.path.join(DATA, "semiconductor_yield_forecasting_data.csv"))</span></div>
+<div class="code-line"><span class="line-number">98</span><span class="line-code">    X = df[NUM_PARAMS].astype(float)</span></div>
+<div class="code-line"><span class="line-number">99</span><span class="line-code">    y = df["yield"].values</span></div>
+<div class="code-line"><span class="line-number">100</span><span class="line-code">    # 时间切分：训练 80%，留 20% 验证代理模型精度</span></div>
+<div class="code-line"><span class="line-number">101</span><span class="line-code">    cut = int(len(df) * 0.8)</span></div>
+<div class="code-line"><span class="line-number">102</span><span class="line-code">    X_tr, X_te, y_tr, y_te = X.iloc[:cut], X.iloc[cut:], y[:cut], y[cut:]</span></div>
+<div class="code-line"><span class="line-number">103</span><span class="line-code">    rf = RandomForestRegressor(n_estimators=400, max_depth=8, min_samples_leaf=3,</span></div>
+<div class="code-line"><span class="line-number">104</span><span class="line-code">                               random_state=SEED, n_jobs=-1)</span></div>
+<div class="code-line"><span class="line-number">105</span><span class="line-code">    rf.fit(X_tr.values, y_tr)</span></div>
+<div class="code-line"><span class="line-number">106</span><span class="line-code">    r2 = rf.score(X_te.values, y_te)</span></div>
+<div class="code-line"><span class="line-number">107</span><span class="line-code">    print(f"代理模型 RF: 测试 R²={r2:.3f}（代理模型精度，越高 BO 寻优越可信）")</span></div>
+<div class="code-line"><span class="line-number">108</span><span class="line-code">    # 产线当前均值配方（其余参数固定于此）</span></div>
+<div class="code-line"><span class="line-number">109</span><span class="line-code">    baseline = X.mean(axis=0).values</span></div>
+<div class="code-line"><span class="line-number">110</span><span class="line-code">    return rf, X.columns.tolist(), baseline, r2</span></div>
+<div class="code-line"><span class="line-number">113</span><span class="line-code">def predict_yield(rf, cols, baseline, new_vals):</span></div>
+<div class="code-line"><span class="line-number">114</span><span class="line-code">    """把寻优参数组合拼进完整特征向量 → 代理模型预测 yield"""</span></div>
+<div class="code-line"><span class="line-number">115</span><span class="line-code">    x = np.asarray(baseline, dtype=float).copy()</span></div>
+<div class="code-line"><span class="line-number">116</span><span class="line-code">    for name, v in zip(OPT_PARAMS, new_vals):</span></div>
+<div class="code-line"><span class="line-number">117</span><span class="line-code">        x[cols.index(name)] = v</span></div>
+<div class="code-line"><span class="line-number">118</span><span class="line-code">    return float(rf.predict(x.reshape(1, -1))[0])</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">optimize.py 第95-118行：代理模型构建</div>
+        <strong>第95-110行：</strong>build_surrogate() 构建代理模型（产线仿真器）。<br>
+        <strong>第103-104行：</strong>RandomForestRegressor参数：<code>n_estimators=400</code>(400棵树)、<code>max_depth=8</code>(树深8)、<code>min_samples_leaf=3</code>(叶节点最少3样本，防过拟合)、<code>n_jobs=-1</code>(用所有CPU核心并行训练)。<br>
+        <strong>第106行：</strong><code>rf.score(X, y)</code> 返回R²分数（决定系数），等价于 <code>r2_score(y, rf.predict(X))</code>。<br>
+        <strong>第109行：</strong><code>X.mean(axis=0)</code> 按列计算均值（axis=0是列方向），得到每个特征的平均值。<code>.values</code> 转为numpy数组。这个baseline代表"产线当前典型配方"。<br>
+        <strong>第113-118行：</strong>predict_yield() 将优化参数（CD/oxide/vth）拼入完整特征向量。<br>
+        <strong>第115行：</strong><code>np.asarray(baseline).copy()</code> 复制baseline数组（避免修改原始数据）。<br>
+        <strong>第116-117行：</strong><code>zip(OPT_PARAMS, new_vals)</code> 同时遍历参数名和新值。<code>cols.index(name)</code> 找到参数在特征列表中的位置，替换为新值。<br>
+        <strong>第118行：</strong><code>x.reshape(1, -1)</code> 将1D数组转为2D行向量（sklearn要求输入是2D）。<code>rf.predict()</code> 返回数组，<code>[0]</code> 取第一个元素。<code>float()</code> 转为Python浮点数。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>df.mean(axis=0)</strong>：axis=0按列计算（每列一个均值），axis=1按行计算</li>
+            <li><strong>zip(list1, list2)</strong>：将两个列表打包成元组迭代器。<code>for a, b in zip([1,2], ['a','b'])</code> → (1,'a'), (2,'b')</li>
+            <li><strong>list.index(value)</strong>：返回列表中第一个等于value的元素的索引</li>
+            <li><strong>array.reshape(rows, cols)</strong>：改变数组形状。<code>-1</code> 表示"自动计算该维度"。<code>reshape(1, -1)</code> 将(n,)转为(1,n)</li>
+            <li><strong>.copy()</strong>：numpy数组的深拷贝。直接赋值 <code>a = b</code> 是引用（共享内存），<code>.copy()</code> 创建独立副本</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>为什么用代理模型？</h5>
+        <p>真实产线做一次实验（跑一个配方组合）成本极高：占用机台、耗材、时间。代理模型用历史数据训练，作为"产线仿真器"——后续寻优只查代理模型（毫秒级），不碰真实产线。代理模型的R²越高，寻优结果越可信。</p>
+    </div>
+</div>
+
+<div class="section" id="opt-cpk">
+    <div class="section-header">
+        <h2><span class="badge">optimize.py</span>Cpk计算与多目标评分</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">optimize.py 第144-222行：Cpk计算与综合评分</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">144</span><span class="line-code">def calculate_cpk_for_params(new_vals, baseline, cols, df_history, within_sigma=None):</span></div>
+<div class="code-line"><span class="line-number">162</span><span class="line-code">    if within_sigma is None:</span></div>
+<div class="code-line"><span class="line-number">163</span><span class="line-code">        df_grouped = df_history.groupby('lot_id')[OPT_PARAMS].std(ddof=1)</span></div>
+<div class="code-line"><span class="line-number">164</span><span class="line-code">        within_sigma = df_grouped.mean()</span></div>
+<div class="code-line"><span class="line-number">166</span><span class="line-code">    cpk_values = []</span></div>
+<div class="code-line"><span class="line-number">169</span><span class="line-code">    for i, param in enumerate(OPT_PARAMS):</span></div>
+<div class="code-line"><span class="line-number">170</span><span class="line-code">        spec = SPEC_LIMITS[param]</span></div>
+<div class="code-line"><span class="line-number">171</span><span class="line-code">        LSL, USL = spec["LSL"], spec["USL"]</span></div>
+<div class="code-line"><span class="line-number">174</span><span class="line-code">        mu_new = new_vals[i]</span></div>
+<div class="code-line"><span class="line-number">175</span><span class="line-code">        sigma = within_sigma[param]</span></div>
+<div class="code-line"><span class="line-number">178</span><span class="line-code">        if sigma < 1e-9:</span></div>
+<div class="code-line"><span class="line-number">179</span><span class="line-code">            cpk = 0.0</span></div>
+<div class="code-line"><span class="line-number">180</span><span class="line-code">        else:</span></div>
+<div class="code-line"><span class="line-number">181</span><span class="line-code">            cpk = min((USL - mu_new) / (3 * sigma), (mu_new - LSL) / (3 * sigma))</span></div>
+<div class="code-line"><span class="line-number">183</span><span class="line-code">        cpk_values.append(cpk)</span></div>
+<div class="code-line"><span class="line-number">187</span><span class="line-code">    return np.array(cpk_values)</span></div>
+<div class="code-line"><span class="line-number">190</span><span class="line-code">def multi_objective_score(yield_val, cpk_vals, yield_target=0.70):</span></div>
+<div class="code-line"><span class="line-number">204</span><span class="line-code">    yield_score = min(yield_val / yield_target, 1.0)</span></div>
+<div class="code-line"><span class="line-number">207</span><span class="line-code">    cpk_factor = 1.0</span></div>
+<div class="code-line"><span class="line-number">209</span><span class="line-code">    for i, param in enumerate(OPT_PARAMS):</span></div>
+<div class="code-line"><span class="line-number">210</span><span class="line-code">        cpk_val = cpk_vals[i]</span></div>
+<div class="code-line"><span class="line-number">211</span><span class="line-code">        cpk_target = CPK_TARGETS[param]</span></div>
+<div class="code-line"><span class="line-number">213</span><span class="line-code">        if cpk_val < 0:</span></div>
+<div class="code-line"><span class="line-number">214</span><span class="line-code">            cpk_factor *= 0.01</span></div>
+<div class="code-line"><span class="line-number">215</span><span class="line-code">        elif cpk_val < cpk_target:</span></div>
+<div class="code-line"><span class="line-number">216</span><span class="line-code">            penalty = (cpk_val / cpk_target) ** 2</span></div>
+<div class="code-line"><span class="line-number">217</span><span class="line-code">            cpk_factor *= penalty</span></div>
+<div class="code-line"><span class="line-number">220</span><span class="line-code">    return yield_score * cpk_factor</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">optimize.py 第144-222行：Cpk计算与综合评分</div>
+        <strong>第144-187行：</strong>calculate_cpk_for_params() 计算给定工艺参数组合下的Cpk。<br>
+        <strong>第163-164行：</strong>如果未提供within_sigma（批次内标准差），则从历史数据计算。<code>groupby('lot_id').std(ddof=1)</code> 计算每个lot内各参数的标准差，<code>.mean()</code> 取所有lot的平均值作为代表。<br>
+        <strong>第169行：</strong><code>enumerate(OPT_PARAMS)</code> 同时获取索引i和参数名param。<br>
+        <strong>第174行：</strong><code>mu_new = new_vals[i]</code> 将参数中心调整到新值（模拟"如果调整工艺目标中心"）。<br>
+        <strong>第178-181行：</strong>避免除零（sigma极小时Cpk无意义）。Cpk公式：<code>min((USL-μ)/3σ, (μ-LSL)/3σ)</code>。<br>
+        <strong>第190-222行：</strong>multi_objective_score() 综合评分函数。<br>
+        <strong>第204行：</strong>良率评分归一化到0~1。<code>min(yield_val / yield_target, 1.0)</code> 超过目标值时截断为1.0。<br>
+        <strong>第207-217行：</strong>Cpk因子（软约束）。如果Cpk<0（参数中心超出规格限），严重惩罚（×0.01）。如果Cpk未达标但>0，平方惩罚（越接近目标惩罚越小）。<br>
+        <strong>第220行：</strong>综合评分 = yield_score × cpk_factor。乘法确保两个目标都必须达标——任何一个很差都会拉低总分。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>** 运算符</strong>：幂运算。<code>x ** 2</code> 是x的平方</li>
+            <li><strong>*= 运算符</strong>：乘法赋值。<code>a *= b</code> 等价于 <code>a = a * b</code></li>
+            <li><strong>1e-9</strong>：科学计数法，表示10的-9次方（0.000000001）。用于浮点数比较（避免精度问题）</li>
+            <li><strong>函数参数默认值</strong>：<code>def func(param=default_value)</code>，调用时可省略该参数</li>
+        </ul>
+    </div>
+</div>
+
+<div class="section" id="opt-doe">
+    <div class="section-header">
+        <h2><span class="badge">optimize.py</span>DOE LHS实验设计</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">optimize.py 第228-238行：Latin Hypercube Sampling</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">228</span><span class="line-code">def doe_lhs(bounds, n):</span></div>
+<div class="code-line"><span class="line-number">229</span><span class="line-code">    """</span></div>
+<div class="code-line"><span class="line-number">230</span><span class="line-code">    LHS 原理：把每个参数的分布区间等分成 n 层，每层恰好取一个点，</span></div>
+<div class="code-line"><span class="line-number">231</span><span class="line-code">    各维度随机配对 → 用 n 个实验点均匀覆盖整个设计空间</span></div>
+<div class="code-line"><span class="line-number">232</span><span class="line-code">    """</span></div>
+<div class="code-line"><span class="line-number">234</span><span class="line-code">    sampler = LatinHypercube(d=len(OPT_PARAMS), seed=SEED)</span></div>
+<div class="code-line"><span class="line-number">235</span><span class="line-code">    unit = sampler.random(n)</span></div>
+<div class="code-line"><span class="line-number">236</span><span class="line-code">    lo = np.array([b[0] for b in bounds])</span></div>
+<div class="code-line"><span class="line-number">237</span><span class="line-code">    hi = np.array([b[1] for b in bounds])</span></div>
+<div class="code-line"><span class="line-number">238</span><span class="line-code">    return lo + unit * (hi - lo)</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">optimize.py 第228-238行：Latin Hypercube Sampling</div>
+        <strong>第234行：</strong><code>LatinHypercube(d=维度数, seed=随机种子)</code> 创建LHS采样器。d=3表示3个优化参数（CD/oxide/vth）。<br>
+        <strong>第235行：</strong><code>sampler.random(n)</code> 生成n个样本点，每个维度在[0,1]区间内分层采样。返回shape=(n, d)的数组。<br>
+        <strong>第236-237行：</strong>从bounds列表提取每个参数的下界(lo)和上界(hi)。bounds格式：<code>[(lo1, hi1), (lo2, hi2), ...]</code>。<br>
+        <strong>第238行：</strong>线性缩放：将[0,1]区间的样本映射到真实参数范围。<code>lo + unit * (hi - lo)</code> 是向量化运算（numpy逐元素计算）。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>numpy向量化运算</strong>：<code>A + B * C</code> 当A/B/C都是数组时，逐元素计算（不需要循环）</li>
+            <li><strong>列表推导式提取元素</strong>：<code>[b[0] for b in bounds]</code> 从元组列表中提取第一个元素</li>
+            <li><strong>scipy.stats.qmc.LatinHypercube</strong>：scipy的准蒙特卡洛采样模块，LHS是实验设计的标准方法</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>LHS vs 随机采样 vs 网格搜索</h5>
+        <p><strong>随机采样</strong>：可能产生聚集和空洞，覆盖不均匀。<br>
+        <strong>网格搜索</strong>：3参数各10层=1000点，实验成本太高。<br>
+        <strong>LHS</strong>：每个参数等分n层，每层恰好取1点，各维度随机配对。50个点就能均匀覆盖3维空间，比随机无空洞，比网格省实验。</p>
+    </div>
+</div>
+
+<div class="section" id="opt-bo">
+    <div class="section-header">
+        <h2><span class="badge">optimize.py</span>贝叶斯优化 GP+EI</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">optimize.py 第244-285行：高斯过程+EI采集函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">244</span><span class="line-code">def expected_improvement(gp, x_cand, y_best, xi=0.01):</span></div>
+<div class="code-line"><span class="line-number">245</span><span class="line-code">    """EI 采集函数：衡量"期望提升量" E[max(f(x)-f_best-xi, 0)]"""</span></div>
+<div class="code-line"><span class="line-number">246</span><span class="line-code">    mu, sigma = gp.predict(x_cand, return_std=True)</span></div>
+<div class="code-line"><span class="line-number">247</span><span class="line-code">    sigma = np.maximum(sigma, 1e-9)</span></div>
+<div class="code-line"><span class="line-number">248</span><span class="line-code">    z = (mu - y_best - xi) / sigma</span></div>
+<div class="code-line"><span class="line-number">249</span><span class="line-code">    phi = np.exp(-0.5 * z**2) / np.sqrt(2 * np.pi)</span></div>
+<div class="code-line"><span class="line-number">250</span><span class="line-code">    Phi = 0.5 * (1 + np.vectorize(lambda t: math.erf(t / np.sqrt(2)))(z))</span></div>
+<div class="code-line"><span class="line-number">251</span><span class="line-code">    return (mu - y_best - xi) * Phi + sigma * phi</span></div>
+<div class="code-line"><span class="line-number">255</span><span class="line-code">def bayes_opt(rf, cols, baseline, bounds, n_iter):</span></div>
+<div class="code-line"><span class="line-number">256</span><span class="line-code">    """GP 代理 + EI 采集：n_iter 轮迭代找最大 yield 的工艺窗口"""</span></div>
+<div class="code-line"><span class="line-number">257</span><span class="line-code">    # 初始点：LHS 采 8 个点做 GP 热身</span></div>
+<div class="code-line"><span class="line-number">258</span><span class="line-code">    X_init = doe_lhs(bounds, 8)</span></div>
+<div class="code-line"><span class="line-number">259</span><span class="line-code">    y_init = np.array([predict_yield(rf, cols, baseline, x) for x in X_init])</span></div>
+<div class="code-line"><span class="line-number">261</span><span class="line-code">    kernel = C(1.0, (1e-3, 1e3)) * RBF([1.0]*len(OPT_PARAMS), (1e-2, 1e2)) + WhiteKernel(1e-3)</span></div>
+<div class="code-line"><span class="line-number">262</span><span class="line-code">    gp = GaussianProcessRegressor(kernel=kernel, normalize_y=True,</span></div>
+<div class="code-line"><span class="line-number">263</span><span class="line-code">                                  n_restarts_optimizer=3, random_state=SEED)</span></div>
+<div class="code-line"><span class="line-number">264</span><span class="line-code">    gp.fit(X_init, y_init)</span></div>
+<div class="code-line"><span class="line-number">266</span><span class="line-code">    cand = doe_lhs(bounds, 5000)</span></div>
+<div class="code-line"><span class="line-number">267</span><span class="line-code">    X_all, y_all = list(X_init), list(y_init)</span></div>
+<div class="code-line"><span class="line-number">268</span><span class="line-code">    history = [max(y_init)]</span></div>
+<div class="code-line"><span class="line-number">269</span><span class="line-code">    best = X_init[np.argmax(y_init)]</span></div>
+<div class="code-line"><span class="line-number">272</span><span class="line-code">    for it in range(n_iter):</span></div>
+<div class="code-line"><span class="line-number">273</span><span class="line-code">        ei = expected_improvement(gp, cand, max(y_all))</span></div>
+<div class="code-line"><span class="line-number">274</span><span class="line-code">        x_next = cand[np.argmax(ei)]</span></div>
+<div class="code-line"><span class="line-number">279</span><span class="line-code">        y_next = predict_yield(rf, cols, baseline, x_next)</span></div>
+<div class="code-line"><span class="line-number">280</span><span class="line-code">        X_all.append(x_next); y_all.append(y_next)</span></div>
+<div class="code-line"><span class="line-number">281</span><span class="line-code">        gp.fit(np.array(X_all), np.array(y_all))</span></div>
+<div class="code-line"><span class="line-number">282</span><span class="line-code">        history.append(max(y_all))</span></div>
+<div class="code-line"><span class="line-number">283</span><span class="line-code">        if y_next > max(history[:-1]):</span></div>
+<div class="code-line"><span class="line-number">284</span><span class="line-code">            best = x_next</span></div>
+<div class="code-line"><span class="line-number">285</span><span class="line-code">    return np.array(X_all), np.array(y_all), np.array(history), best, gp</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">optimize.py 第244-285行：高斯过程+EI采集函数</div>
+        <strong>第244-251行：</strong>expected_improvement() EI采集函数。<br>
+        <strong>第246行：</strong><code>gp.predict(x_cand, return_std=True)</code> 返回预测均值mu和标准差sigma。GP的优势是同时给出预测值和不确定性。<br>
+        <strong>第247行：</strong><code>np.maximum(sigma, 1e-9)</code> 防止sigma为0导致除零。<br>
+        <strong>第248行：</strong><code>z = (mu - y_best - xi) / sigma</code> 标准化。xi=0.01是探索-开发权衡参数（越大越倾向探索未知区域）。<br>
+        <strong>第249行：</strong><code>phi</code> 是标准正态分布的PDF（概率密度函数）。<br>
+        <strong>第250行：</strong><code>Phi</code> 是标准正态分布的CDF（累积分布函数）。<code>math.erf</code> 是误差函数，通过<code>np.vectorize</code>转为逐元素运算。<br>
+        <strong>第251行：</strong>EI闭式解公式：<code>EI = (mu - y_best - xi) × Φ(z) + σ × φ(z)</code>。EI越大表示该点"期望提升"越多。<br>
+        <strong>第255-285行：</strong>bayes_opt() 贝叶斯优化主循环。<br>
+        <strong>第258-259行：</strong>初始8个点用LHS采样（GP需要初始数据才能建模）。<br>
+        <strong>第261行：</strong>核函数组合：<code>C * RBF + WhiteKernel</code>。C是常数核，RBF是径向基函数核（平滑），WhiteKernel是白噪声核（测量误差）。<br>
+        <strong>第262-263行：</strong><code>normalize_y=True</code> 对y值标准化（提高数值稳定性）。<code>n_restarts_optimizer=3</code> 核参数优化时重启3次（避免局部最优）。<br>
+        <strong>第266行：</strong>候选集5000个点（LHS采样），每轮从中选EI最大的点。<br>
+        <strong>第272-284行：</strong>迭代优化循环。每轮：①计算所有候选点的EI → ②选EI最大的点x_next → ③查代理模型得y_next → ④将新点加入训练集 → ⑤重新拟合GP → ⑥更新history和best。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>np.maximum(A, B)</strong>：逐元素取最大值（与Python内置max不同，max返回单个值）</li>
+            <li><strong>np.exp(x)</strong>：指数函数e^x（逐元素）</li>
+            <li><strong>np.sqrt(x)</strong>：平方根（逐元素）</li>
+            <li><strong>np.vectorize(func)</strong>：将标量函数转为逐元素运算的向量化函数</li>
+            <li><strong>np.argmax(arr)</strong>：返回数组中最大值的索引</li>
+            <li><strong>list.append(x)</strong>：向列表末尾添加元素</li>
+            <li><strong>history[:-1]</strong>：切片取除最后一个元素外的所有元素</li>
+        </ul>
+    </div>
+    <div class="logic-flow">
+        <h5>贝叶斯优化流程</h5>
+        <ol>
+            <li>初始阶段：LHS采8个点 → 查代理模型得yield → 拟合GP</li>
+            <li>迭代阶段（30轮）：
+                <ul>
+                    <li>在5000个候选点上计算EI（期望提升）</li>
+                    <li>选EI最大的点 → 查代理模型 → 加入训练集</li>
+                    <li>重新拟合GP（更新响应面模型）</li>
+                </ul>
+            </li>
+            <li>输出：历史最优yield + 对应的工艺参数组合</li>
+        </ol>
+    </div>
+</div>
+
+<div class="section" id="opt-pareto">
+    <div class="section-header">
+        <h2><span class="badge">optimize.py</span>Pareto多目标优化</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">optimize.py 第291-398行：Pareto前沿计算</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">291</span><span class="line-code">def pareto_dominance(obj1, obj2):</span></div>
+<div class="code-line"><span class="line-number">301</span><span class="line-code">    at_least_one_better = False</span></div>
+<div class="code-line"><span class="line-number">302</span><span class="line-code">    for i in range(len(obj1)):</span></div>
+<div class="code-line"><span class="line-number">303</span><span class="line-code">        if obj1[i] < obj2[i]:</span></div>
+<div class="code-line"><span class="line-number">304</span><span class="line-code">            return False</span></div>
+<div class="code-line"><span class="line-number">305</span><span class="line-code">        if obj1[i] > obj2[i]:</span></div>
+<div class="code-line"><span class="line-number">306</span><span class="line-code">            at_least_one_better = True</span></div>
+<div class="code-line"><span class="line-number">307</span><span class="line-code">    return at_least_one_better</span></div>
+<div class="code-line"><span class="line-number">310</span><span class="line-code">def find_pareto_front(objectives):</span></div>
+<div class="code-line"><span class="line-number">320</span><span class="line-code">    n = len(objectives)</span></div>
+<div class="code-line"><span class="line-number">321</span><span class="line-code">    is_dominated = [False] * n</span></div>
+<div class="code-line"><span class="line-number">323</span><span class="line-code">    for i in range(n):</span></div>
+<div class="code-line"><span class="line-number">324</span><span class="line-code">        for j in range(n):</span></div>
+<div class="code-line"><span class="line-number">325</span><span class="line-code">            if i != j and not is_dominated[j]:</span></div>
+<div class="code-line"><span class="line-number">326</span><span class="line-code">                if pareto_dominance(objectives[j], objectives[i]):</span></div>
+<div class="code-line"><span class="line-number">327</span><span class="line-code">                    is_dominated[i] = True</span></div>
+<div class="code-line"><span class="line-number">328</span><span class="line-code">                    break</span></div>
+<div class="code-line"><span class="line-number">330</span><span class="line-code">    pareto_indices = [i for i in range(n) if not is_dominated[i]]</span></div>
+<div class="code-line"><span class="line-number">331</span><span class="line-code">    return pareto_indices</span></div>
+<div class="code-line"><span class="line-number">334</span><span class="line-code">def pareto_optimize(rf, cols, baseline, bounds, df_history, n_candidates=500):</span></div>
+<div class="code-line"><span class="line-number">356</span><span class="line-code">    X_cand = doe_lhs(bounds, n_candidates)</span></div>
+<div class="code-line"><span class="line-number">359</span><span class="line-code">    yield_vals = predict_yield_batch(rf, cols, baseline, X_cand)</span></div>
+<div class="code-line"><span class="line-number">371</span><span class="line-code">    cpu = (USL - X_cand) / (3 * sigma)</span></div>
+<div class="code-line"><span class="line-number">372</span><span class="line-code">    cpl = (X_cand - LSL) / (3 * sigma)</span></div>
+<div class="code-line"><span class="line-number">373</span><span class="line-code">    cpk_vals = np.minimum(cpu, cpl)</span></div>
+<div class="code-line"><span class="line-number">377</span><span class="line-code">    min_cpk_vals = np.min(cpk_vals, axis=1)</span></div>
+<div class="code-line"><span class="line-number">380</span><span class="line-code">    objectives = np.column_stack([yield_vals, min_cpk_vals])</span></div>
+<div class="code-line"><span class="line-number">383</span><span class="line-code">    pareto_indices = find_pareto_front(objectives)</span></div>
+<div class="code-line"><span class="line-number">384</span><span class="line-code">    pareto_X = X_cand[pareto_indices]</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">optimize.py 第291-398行：Pareto前沿计算</div>
+        <strong>第291-307行：</strong>pareto_dominance() 判断解1是否支配解2（多目标最大化问题）。<br>
+        <strong>支配条件：</strong>①解1在所有目标上都不差于解2（≥）→ ②且至少在一个目标上严格优于解2（>）。如果满足，则解1支配解2。<br>
+        <strong>第310-331行：</strong>find_pareto_front() 找出Pareto前沿（非支配解）。<br>
+        <strong>第321行：</strong><code>[False] * n</code> 创建长度为n的布尔列表，初始全为False（未被支配）。<br>
+        <strong>第323-328行：</strong>双重循环比较所有解对。如果解j支配解i，则标记is_dominated[i]=True并break（已被支配，无需继续比较）。<br>
+        <strong>第330行：</strong>列表推导式筛选未被支配的解的索引。<br>
+        <strong>第334-398行：</strong>pareto_optimize() Pareto多目标优化主函数。<br>
+        <strong>第356行：</strong>LHS采样500个候选点。<br>
+        <strong>第359行：</strong><code>predict_yield_batch()</code> 批量预测yield（向量化，比循环快）。<br>
+        <strong>第371-373行：</strong>向量化计算Cpk。<code>cpu</code>和<code>cpl</code>分别是上、下规格限的Cpk分量，<code>np.minimum</code>逐元素取最小值。<br>
+        <strong>第377行：</strong><code>np.min(cpk_vals, axis=1)</code> 对每个候选点取所有参数的最小Cpk（工艺稳定性取决于最弱环节）。<br>
+        <strong>第380行：</strong><code>np.column_stack([A, B])</code> 将两个1D数组堆叠为2D数组（n_samples, 2）。<br>
+        <strong>第383-384行：</strong>找出Pareto前沿的索引 → 用索引取对应的参数组合。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>[False] * n</strong>：列表重复操作，创建n个False的列表</li>
+            <li><strong>break</strong>：跳出当前循环（最内层for或while）</li>
+            <li><strong>np.minimum(A, B)</strong>：逐元素取最小值（与Python内置min不同）</li>
+            <li><strong>np.min(arr, axis=1)</strong>：按行取最小值（axis=0按列，axis=1按行）</li>
+            <li><strong>np.column_stack([A, B])</strong>：将1D数组作为列堆叠为2D数组</li>
+            <li><strong>双重循环</strong>：<code>for i...: for j...:</code> 嵌套循环，时间复杂度O(n²)</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>Pareto前沿的业务含义</h5>
+        <p>yield和Cpk往往冲突：高yield可能牺牲过程稳定性（Cpk下降）。Pareto前沿展示了"鱼与熊掌"的权衡关系——前沿上的每个解都是"非支配解"（没有任何其他解在两个目标上都更好）。工程师可以根据实际需求选择合适的折中方案。</p>
+    </div>
+</div>
+
+<div class="section" id="opt-main">
+    <div class="section-header">
+        <h2><span class="badge">optimize.py</span>main() 主流程</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">optimize.py 第404-606行：串联优化流程</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">404</span><span class="line-code">def main():</span></div>
+<div class="code-line"><span class="line-number">409</span><span class="line-code">    rf, cols, baseline, r2 = build_surrogate()</span></div>
+<div class="code-line"><span class="line-number">410</span><span class="line-code">    lo = np.array([baseline[cols.index(p)] * 0.7 for p in OPT_PARAMS])</span></div>
+<div class="code-line"><span class="line-number">411</span><span class="line-code">    hi = np.array([baseline[cols.index(p)] * 1.3 for p in OPT_PARAMS])</span></div>
+<div class="code-line"><span class="line-number">412</span><span class="line-code">    bounds = list(zip(lo, hi))</span></div>
+<div class="code-line"><span class="line-number">418</span><span class="line-code">    df_history = pd.read_csv(os.path.join(DATA, "semiconductor_yield_forecasting_data.csv"))</span></div>
+<div class="code-line"><span class="line-number">421</span><span class="line-code">    X_lhs = doe_lhs(bounds, N_LHS)</span></div>
+<div class="code-line"><span class="line-number">422</span><span class="line-code">    y_lhs = np.array([predict_yield(rf, cols, baseline, x) for x in X_lhs])</span></div>
+<div class="code-line"><span class="line-number">423</span><span class="line-code">    cpk_lhs = np.array([calculate_cpk_for_params(x, baseline, cols, df_history) for x in X_lhs])</span></div>
+<div class="code-line"><span class="line-number">424</span><span class="line-code">    score_lhs = np.array([multi_objective_score(y, c) for y, c in zip(y_lhs, cpk_lhs)])</span></div>
+<div class="code-line"><span class="line-number">452</span><span class="line-code">    X_cand, yield_cand, min_cpk_cand, pareto_X, pareto_yield, pareto_cpk, pareto_cpk_detail = \</span></div>
+<div class="code-line"><span class="line-number">453</span><span class="line-code">        pareto_optimize(rf, cols, baseline, bounds, df_history, n_candidates=5000)</span></div>
+<div class="code-line"><span class="line-number">512</span><span class="line-code">    # ---- 图 1：Pareto 前沿可视化 ----</span></div>
+<div class="code-line"><span class="line-number">513</span><span class="line-code">    fig, ax = plt.subplots(figsize=(7, 5))</span></div>
+<div class="code-line"><span class="line-number">515</span><span class="line-code">    ax.scatter(yield_cand, min_cpk_cand, c="#D3D3D3", s=8, alpha=0.5, label="所有候选点")</span></div>
+<div class="code-line"><span class="line-number">517</span><span class="line-code">    ax.scatter(pareto_yield, pareto_cpk, c="#B23A48", s=40, marker="o", label="Pareto 前沿")</span></div>
+<div class="code-line"><span class="line-number">569</span><span class="line-code">    # ---- 结果 JSON ----</span></div>
+<div class="code-line"><span class="line-number">570</span><span class="line-code">    out = {</span></div>
+<div class="code-line"><span class="line-number">571</span><span class="line-code">        "surrogate_r2": round(float(r2), 3),</span></div>
+<div class="code-line"><span class="line-number">599</span><span class="line-code">    with open(os.path.join(RESULT, "optimize_results.json"), "w", encoding="utf-8") as f:</span></div>
+<div class="code-line"><span class="line-number">600</span><span class="line-code">        json.dump(out, f, ensure_ascii=False, indent=1)</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">optimize.py 第404-606行：串联优化流程</div>
+        <strong>第409行：</strong>构建代理模型，返回RF模型、特征列名、baseline配方、R²分数。<br>
+        <strong>第410-411行：</strong>寻优空间：baseline均值±30%窗口。<code>baseline[cols.index(p)]</code> 取参数p在baseline中的值。<br>
+        <strong>第412行：</strong><code>zip(lo, hi)</code> 将下界和上界打包成元组列表。<code>list()</code> 转为列表。结果：<code>[(lo1, hi1), (lo2, hi2), ...]</code>。<br>
+        <strong>第421-424行：</strong>DOE LHS实验。50个点 → 计算yield → 计算Cpk → 计算综合评分。<code>zip(y_lhs, cpk_lhs)</code> 同时遍历yield和Cpk数组。<br>
+        <strong>第452-453行：</strong>Pareto多目标优化。反斜杠<code>\</code> 表示续行（Python允许长语句跨行）。<br>
+        <strong>第513-517行：</strong>绘制Pareto前沿散点图。灰色背景是所有候选点，红色是Pareto前沿。<br>
+        <strong>第570-600行：</strong>将优化结果保存为JSON文件。<code>round(float(r2), 3)</code> 保留3位小数。<code>json.dump()</code> 序列化字典为JSON。<code>ensure_ascii=False</code> 允许中文字符，<code>indent=1</code> 缩进1空格（美化格式）。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>zip(A, B)</strong>：将两个列表打包成元组迭代器。<code>list(zip([1,2], ['a','b']))</code> → <code>[(1,'a'), (2,'b')]</code></li>
+            <li><strong>\ 续行符</strong>：反斜杠表示下一行是当前行的延续（允许长语句换行书写）</li>
+            <li><strong>round(x, n)</strong>：四舍五入保留n位小数</li>
+            <li><strong>json.dump(dict, file, ...)</strong>：将字典序列化为JSON并写入文件。<code>ensure_ascii=False</code> 允许非ASCII字符（如中文）</li>
+            <li><strong>with open(...) as f:</strong>：上下文管理器，自动关闭文件（即使发生异常）</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- generate_reports.py 代码详解 -->
+<!-- ================================================================ -->
+<div class="section" id="rpt-overview">
+    <div class="section-header">
+        <h2><span class="badge">generate_reports.py</span>报表系统概览</h2>
+    </div>
+    <div class="file-overview">
+        <h4>文件职责</h4>
+        <p>静态HTML报表生成系统，生成6类核心报表：SPC实时监控、良率分析、工艺优化、设备监控、WIP在制品、成本分析。每个报表函数接收DataFrame参数，计算指标后拼接HTML字符串，最终写入reports/目录。</p>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_reports.py 第1-21行：导入与全局配置</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">1</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">2</span><span class="line-code">半导体制造报表生成系统</span></div>
+<div class="code-line"><span class="line-number">3</span><span class="line-code">生成 6 类核心报表：SPC、良率分析、工艺优化、设备监控、WIP、成本分析</span></div>
+<div class="code-line"><span class="line-number">4</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">5</span><span class="line-code"></span></div>
+<div class="code-line"><span class="line-number">6</span><span class="line-code">import os</span></div>
+<div class="code-line"><span class="line-number">7</span><span class="line-code">import pandas as pd</span></div>
+<div class="code-line"><span class="line-number">8</span><span class="line-code">import numpy as np</span></div>
+<div class="code-line"><span class="line-number">9</span><span class="line-code">import matplotlib.pyplot as plt</span></div>
+<div class="code-line"><span class="line-number">10</span><span class="line-code">import matplotlib</span></div>
+<div class="code-line"><span class="line-number">11</span><span class="line-code">from datetime import datetime</span></div>
+<div class="code-line"><span class="line-number">12</span><span class="line-code">from scipy import stats</span></div>
+<div class="code-line"><span class="line-number">13</span><span class="line-code"></span></div>
+<div class="code-line"><span class="line-number">14</span><span class="line-code">matplotlib.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS']</span></div>
+<div class="code-line"><span class="line-number">15</span><span class="line-code">matplotlib.rcParams['axes.unicode_minus'] = False</span></div>
+<div class="code-line"><span class="line-number">16</span><span class="line-code"></span></div>
+<div class="code-line"><span class="line-number">17</span><span class="line-code">DATA = "data"</span></div>
+<div class="code-line"><span class="line-number">18</span><span class="line-code">REPORTS = "reports"</span></div>
+<div class="code-line"><span class="line-number">19</span><span class="line-code"></span></div>
+<div class="code-line"><span class="line-number">20</span><span class="line-code"># 确保 reports 目录存在</span></div>
+<div class="code-line"><span class="line-number">21</span><span class="line-code">os.makedirs(REPORTS, exist_ok=True)</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_reports.py 第1-21行：导入与全局配置</div>
+        <strong>第1-4行：</strong>模块文档字符串（docstring），说明文件功能。<br>
+        <strong>第6-12行：</strong>导入依赖。<code>os</code>处理路径，<code>pandas/numpy</code>数据处理，<code>matplotlib</code>绘图（本文件实际未使用绘图，但保留导入），<code>datetime</code>获取当前时间戳，<code>scipy.stats</code>统计检验。<br>
+        <strong>第14-15行：</strong>matplotlib全局配置：设置中文字体（SimHei/Microsoft YaHei），禁用Unicode负号替换（避免负号显示为方块）。<br>
+        <strong>第17-18行：</strong>路径常量。使用相对路径（相对于脚本运行目录）。<br>
+        <strong>第21行：</strong><code>os.makedirs(REPORTS, exist_ok=True)</code> 创建reports目录，<code>exist_ok=True</code> 表示目录已存在时不报错。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>os.makedirs(path, exist_ok=True)</strong>：递归创建目录。exist_ok=True时目录已存在不抛异常</li>
+            <li><strong>matplotlib.rcParams</strong>：全局配置字典，设置后所有后续绘图都生效</li>
+            <li><strong>from datetime import datetime</strong>：只导入datetime类（而非整个模块），使用时直接<code>datetime.now()</code></li>
+            <li><strong>相对路径 vs 绝对路径</strong>：本文件用相对路径"data"，依赖脚本运行目录。optimize.py用<code>os.path.dirname(__file__)</code>构建绝对路径，更健壮</li>
+        </ul>
+    </div>
+</div>
+
+<div class="section" id="rpt-spc">
+    <div class="section-header">
+        <h2><span class="badge">generate_reports.py</span>SPC报表生成</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_reports.py 第26-177行：SPC实时监控报表</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">26</span><span class="line-code">def generate_spc_report(df):</span></div>
+<div class="code-line"><span class="line-number">27</span><span class="line-code">    """生成 SPC 控制图报表"""</span></div>
+<div class="code-line"><span class="line-number">28</span><span class="line-code">    print("[1/6] 生成 SPC 实时监控报表...")</span></div>
+<div class="code-line"><span class="line-number">29</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">30</span><span class="line-code">    key_params = ['critical_dimension', 'oxide_thickness', 'vth']</span></div>
+<div class="code-line"><span class="line-number">31</span><span class="line-code">    spec_limits = {</span></div>
+<div class="code-line"><span class="line-number">32</span><span class="line-code">        'critical_dimension': {'LSL': 15.0, 'USL': 35.0, 'target': 25.0},</span></div>
+<div class="code-line"><span class="line-number">33</span><span class="line-code">        'oxide_thickness': {'LSL': 45.0, 'USL': 70.0, 'target': 57.5},</span></div>
+<div class="code-line"><span class="line-number">34</span><span class="line-code">        'vth': {'LSL': 0.4, 'USL': 0.9, 'target': 0.65}</span></div>
+<div class="code-line"><span class="line-number">35</span><span class="line-code">    }</span></div>
+<div class="code-line"><span class="line-number">36</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">37</span><span class="line-code">    html = f"""&lt;!DOCTYPE html&gt;</span></div>
+<div class="code-line"><span class="line-number">38</span><span class="line-code">&lt;html lang="zh-CN"&gt;</span></div>
+<div class="code-line"><span class="line-number">39</span><span class="line-code">...</span></div>
+<div class="code-line"><span class="line-number">70</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">71</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">72</span><span class="line-code">    # 计算每个参数的 Cpk</span></div>
+<div class="code-line"><span class="line-number">73</span><span class="line-code">    cpk_data = []</span></div>
+<div class="code-line"><span class="line-number">74</span><span class="line-code">    for param in key_params:</span></div>
+<div class="code-line"><span class="line-number">75</span><span class="line-code">        values = df[param].values</span></div>
+<div class="code-line"><span class="line-number">76</span><span class="line-code">        mean_val = np.mean(values)</span></div>
+<div class="code-line"><span class="line-number">77</span><span class="line-code">        std_val = np.std(values, ddof=1)</span></div>
+<div class="code-line"><span class="line-number">78</span><span class="line-code">        usl = spec_limits[param]['USL']</span></div>
+<div class="code-line"><span class="line-number">79</span><span class="line-code">        lsl = spec_limits[param]['LSL']</span></div>
+<div class="code-line"><span class="line-number">80</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">81</span><span class="line-code">        cpu = (usl - mean_val) / (3 * std_val)</span></div>
+<div class="code-line"><span class="line-number">82</span><span class="line-code">        cpl = (mean_val - lsl) / (3 * std_val)</span></div>
+<div class="code-line"><span class="line-number">83</span><span class="line-code">        cpk = min(cpu, cpl)</span></div>
+<div class="code-line"><span class="line-number">84</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">85</span><span class="line-code">        # 计算合格率</span></div>
+<div class="code-line"><span class="line-number">86</span><span class="line-code">        in_spec = np.sum((values >= lsl) & (values <= usl))</span></div>
+<div class="code-line"><span class="line-number">87</span><span class="line-code">        yield_pct = in_spec / len(values) * 100</span></div>
+<div class="code-line"><span class="line-number">88</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">89</span><span class="line-code">        cpk_data.append({</span></div>
+<div class="code-line"><span class="line-number">90</span><span class="line-code">            'param': param, 'mean': mean_val, 'std': std_val,</span></div>
+<div class="code-line"><span class="line-number">91</span><span class="line-code">            'cpk': cpk, 'yield': yield_pct, 'usl': usl, 'lsl': lsl</span></div>
+<div class="code-line"><span class="line-number">92</span><span class="line-code">        })</span></div>
+<div class="code-line"><span class="line-number">93</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">99</span><span class="line-code">        status_class = 'status-pass' if cpk >= 1.33 else ('status-warn' if cpk >= 1.0 else 'status-fail')</span></div>
+<div class="code-line"><span class="line-number">100</span><span class="line-code">        status_text = '✅ 充足' if cpk >= 1.33 else ('⚠️ 不足' if cpk >= 1.0 else '❌ 严重不足')</span></div>
+<div class="code-line"><span class="line-number">101</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">102</span><span class="line-code">        html += f"""</span></div>
+<div class="code-line"><span class="line-number">103</span><span class="line-code">            &lt;div class="metric-box"&gt;</span></div>
+<div class="code-line"><span class="line-number">104</span><span class="line-code">                &lt;div class="metric-label"&gt;{param}&lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">105</span><span class="line-code">                &lt;div class="metric-value"&gt;{cpk:.2f}&lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">106</span><span class="line-code">                &lt;div class="metric-label"&gt;Cpk | 合格率 {yield_pct:.1f}%&lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">107</span><span class="line-code">                &lt;div class="{status_class}"&gt;{status_text}&lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">108</span><span class="line-code">            &lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">109</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">175</span><span class="line-code">    with open(os.path.join(REPORTS, 'spc_report.html'), 'w', encoding='utf-8') as f:</span></div>
+<div class="code-line"><span class="line-number">176</span><span class="line-code">        f.write(html)</span></div>
+<div class="code-line"><span class="line-number">177</span><span class="line-code">    print("      ✅ spc_report.html")</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_reports.py 第26-177行：SPC实时监控报表</div>
+        <strong>第26-35行：</strong>函数定义。定义关键参数列表和规格限字典（嵌套字典结构）。<br>
+        <strong>第37-70行：</strong>使用f-string构建HTML模板。<code>f"""..."""</code> 多行f-string，花括号<code>{{}}</code> 转义为CSS中的字面花括号。<code>{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</code> 插入当前时间。<br>
+        <strong>第73-92行：</strong>循环计算每个参数的Cpk。<code>df[param].values</code> 提取列值为numpy数组。<code>np.std(values, ddof=1)</code> 使用贝塞尔校正（除以n-1）计算样本标准差。<br>
+        <strong>第81-83行：</strong>Cpk计算。CPU=(USL-μ)/3σ，CPL=(μ-LSL)/3σ，Cpk=min(CPU,CPL)。<br>
+        <strong>第86-87行：</strong>合格率计算。<code>(values >= lsl) & (values <= usl)</code> 布尔索引，<code>np.sum()</code> 计算True的个数。<br>
+        <strong>第99-100行：</strong>三元条件表达式嵌套。<code>'a' if cond1 else ('b' if cond2 else 'c')</code> 实现三档分类。<br>
+        <strong>第102-109行：</strong>动态拼接HTML。<code>html += f"""..."""</code> 在循环中累加HTML片段，<code>{param}</code>等变量被替换为实际值。<br>
+        <strong>第175-176行：</strong>写入文件。<code>os.path.join(REPORTS, 'spc_report.html')</code> 拼接路径。<code>encoding='utf-8'</code> 确保中文正确写入。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>f-string中的花括号转义</strong>：CSS的<code>{color: red}</code>在f-string中需写成<code>{{color: red}}</code>，否则Python会尝试解析为变量</li>
+            <li><strong>np.std(ddof=1)</strong>：ddof=1使用贝塞尔校正（除以n-1），得到无偏样本标准差估计。ddof=0（默认）除以n，是总体标准差</li>
+            <li><strong>嵌套三元表达式</strong>：<code>'a' if x else ('b' if y else 'c')</code> 等价于if-elif-else，但更简洁</li>
+            <li><strong>布尔索引 + np.sum()</strong>：<code>(arr >= lsl) & (arr <= usl)</code> 生成布尔数组，<code>np.sum()</code> 计算True个数（True被当作1）</li>
+            <li><strong>字典列表模式</strong>：<code>cpk_data.append({...})</code> 将每个参数的计算结果存为字典，方便后续遍历生成表格</li>
+            <li><strong>with open(...) as f: f.write(html)</strong>：上下文管理器确保文件写完后自动关闭（即使发生异常）</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>HTML报表生成模式</h5>
+        <p>本文件采用"Python计算 + f-string拼接HTML"模式。优点：无需额外模板引擎，代码直观。缺点：HTML和Python逻辑混在一起，维护成本高。工业场景常用Jinja2模板引擎分离逻辑和展示。</p>
+    </div>
+</div>
+
+<div class="section" id="rpt-yield">
+    <div class="section-header">
+        <h2><span class="badge">generate_reports.py</span>良率报表生成</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_reports.py 第183-331行：良率分析报表</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">183</span><span class="line-code">def generate_yield_report(df):</span></div>
+<div class="code-line"><span class="line-number">184</span><span class="line-code">    """生成良率分析报表"""</span></div>
+<div class="code-line"><span class="line-number">185</span><span class="line-code">    print("[2/6] 生成良率分析报表...")</span></div>
+<div class="code-line"><span class="line-number">186</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">187</span><span class="line-code">    overall_yield = df['yield'].mean() * 100</span></div>
+<div class="code-line"><span class="line-number">188</span><span class="line-code">    yield_std = df['yield'].std() * 100</span></div>
+<div class="code-line"><span class="line-number">189</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">190</span><span class="line-code">    # 按产品类型统计</span></div>
+<div class="code-line"><span class="line-number">191</span><span class="line-code">    yield_by_product = df.groupby('product_type')['yield'].agg(['mean', 'std', 'count'])</span></div>
+<div class="code-line"><span class="line-number">192</span><span class="line-code">    yield_by_product.columns = ['avg_yield', 'std_yield', 'count']</span></div>
+<div class="code-line"><span class="line-number">193</span><span class="line-code">    yield_by_product['avg_yield'] *= 100</span></div>
+<div class="code-line"><span class="line-number">194</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">195</span><span class="line-code">    # 按技术节点统计</span></div>
+<div class="code-line"><span class="line-number">196</span><span class="line-code">    yield_by_node = df.groupby('technology_node')['yield'].agg(['mean', 'std', 'count'])</span></div>
+<div class="code-line"><span class="line-number">197</span><span class="line-code">    yield_by_node.columns = ['avg_yield', 'std_yield', 'count']</span></div>
+<div class="code-line"><span class="line-number">198</span><span class="line-code">    yield_by_node['avg_yield'] *= 100</span></div>
+<div class="code-line"><span class="line-number">199</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">200</span><span class="line-code">    # 缺陷分析</span></div>
+<div class="code-line"><span class="line-number">201</span><span class="line-code">    defect_stats = df[['defect_count', 'defect_density']].describe()</span></div>
+<div class="code-line"><span class="line-number">264</span><span class="line-code">    for product, row in yield_by_product.iterrows():</span></div>
+<div class="code-line"><span class="line-number">265</span><span class="line-code">        html += f"""</span></div>
+<div class="code-line"><span class="line-number">266</span><span class="line-code">                &lt;tr&gt;</span></div>
+<div class="code-line"><span class="line-number">267</span><span class="line-code">                    &lt;td&gt;{product}&lt;/td&gt;</span></div>
+<div class="code-line"><span class="line-number">268</span><span class="line-code">                    &lt;td&gt;{row['avg_yield']:.1f}%&lt;/td&gt;</span></div>
+<div class="code-line"><span class="line-number">269</span><span class="line-code">                    &lt;td&gt;±{row['std_yield']*100:.1f}%&lt;/td&gt;</span></div>
+<div class="code-line"><span class="line-number">270</span><span class="line-code">                    &lt;td&gt;{int(row['count'])}&lt;/td&gt;</span></div>
+<div class="code-line"><span class="line-number">271</span><span class="line-code">                &lt;/tr&gt;</span></div>
+<div class="code-line"><span class="line-number">272</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">314</span><span class="line-code">    worst_product = yield_by_product['avg_yield'].idxmin()</span></div>
+<div class="code-line"><span class="line-number">315</span><span class="line-code">    worst_yield = yield_by_product.loc[worst_product, 'avg_yield']</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_reports.py 第183-331行：良率分析报表</div>
+        <strong>第187-188行：</strong>计算整体良率均值和标准差。<code>df['yield'].mean()</code> 返回0~1之间的小数，乘以100转为百分比。<br>
+        <strong>第191行：</strong><code>df.groupby('product_type')['yield'].agg(['mean', 'std', 'count'])</code> 按产品类型分组，对yield列同时计算均值、标准差、计数。返回DataFrame，列名为'mean','std','count'。<br>
+        <strong>第192行：</strong>重命名列。<code>yield_by_product.columns = [...]</code> 直接替换列名列表。<br>
+        <strong>第193行：</strong><code>*= 100</code> 就地乘法赋值，等价于<code>yield_by_product['avg_yield'] = yield_by_product['avg_yield'] * 100</code>。<br>
+        <strong>第201行：</strong><code>df[['defect_count', 'defect_density']].describe()</code> 生成描述性统计（count/mean/std/min/25%/50%/75%/max）。<br>
+        <strong>第264行：</strong><code>yield_by_product.iterrows()</code> 逐行迭代，返回(index, Series)对。<code>product</code>是索引值（产品类型名），<code>row</code>是该行的Series。<br>
+        <strong>第269行：</strong><code>row['std_yield']*100</code> 因为前面只乘了avg_yield，std_yield还是0~1范围，这里再乘100。<br>
+        <strong>第314行：</strong><code>idxmin()</code> 返回最小值对应的索引（产品类型名）。<br>
+        <strong>第315行：</strong><code>.loc[worst_product, 'avg_yield']</code> 用标签索引取值（行标签, 列标签）。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>df.groupby(col)[target].agg([...])</strong>：分组聚合。agg接受函数名列表，返回MultiIndex列的DataFrame</li>
+            <li><strong>df.columns = [...]</strong>：直接替换列名。要求列表长度等于列数</li>
+            <li><strong>*= 运算符</strong>：就地乘法赋值。对numpy数组/pandas Series是元素级操作</li>
+            <li><strong>df.describe()</strong>：生成描述性统计摘要（计数/均值/标准差/最小值/四分位数/最大值）</li>
+            <li><strong>df.iterrows()</strong>：逐行迭代，返回(index, row)。性能较差（每行创建Series），大数据集建议用itertuples()或向量化</li>
+            <li><strong>Series.idxmin()</strong>：返回最小值对应的索引标签</li>
+            <li><strong>df.loc[row_label, col_label]</strong>：基于标签的索引。与iloc（基于位置）相对</li>
+        </ul>
+    </div>
+</div>
+
+<div class="section" id="rpt-cost">
+    <div class="section-header">
+        <h2><span class="badge">generate_reports.py</span>成本报表与主流程</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_reports.py 第642-807行：成本分析 + main()主流程</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">642</span><span class="line-code">def generate_cost_report(df):</span></div>
+<div class="code-line"><span class="line-number">643</span><span class="line-code">    """生成成本分析报表"""</span></div>
+<div class="code-line"><span class="line-number">644</span><span class="line-code">    print("[6/6] 生成成本分析报表...")</span></div>
+<div class="code-line"><span class="line-number">645</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">646</span><span class="line-code">    overall_yield = df['yield'].mean()</span></div>
+<div class="code-line"><span class="line-number">647</span><span class="line-code">    optimized_yield = 0.710  # Pareto 优化后的良率</span></div>
+<div class="code-line"><span class="line-number">648</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">649</span><span class="line-code">    # 假设每片晶圆成本 $1000</span></div>
+<div class="code-line"><span class="line-number">650</span><span class="line-code">    wafer_cost = 1000</span></div>
+<div class="code-line"><span class="line-number">651</span><span class="line-code">    total_wafers = len(df)</span></div>
+<div class="code-line"><span class="line-number">652</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">653</span><span class="line-code">    # 当前良率损失</span></div>
+<div class="code-line"><span class="line-number">654</span><span class="line-code">    current_loss = (1 - overall_yield) * total_wafers * wafer_cost</span></div>
+<div class="code-line"><span class="line-number">655</span><span class="line-code">    optimized_loss = (1 - optimized_yield) * total_wafers * wafer_cost</span></div>
+<div class="code-line"><span class="line-number">656</span><span class="line-code">    savings = current_loss - optimized_loss</span></div>
+<div class="code-line"><span class="line-number">775</span><span class="line-code">def main():</span></div>
+<div class="code-line"><span class="line-number">776</span><span class="line-code">    print("=" * 70)</span></div>
+<div class="code-line"><span class="line-number">777</span><span class="line-code">    print("半导体制造报表生成系统")</span></div>
+<div class="code-line"><span class="line-number">780</span><span class="line-code">    print("\n加载数据...")</span></div>
+<div class="code-line"><span class="line-number">781</span><span class="line-code">    df = pd.read_csv(os.path.join(DATA, "semiconductor_yield_forecasting_data.csv"))</span></div>
+<div class="code-line"><span class="line-number">782</span><span class="line-code">    print(f"  数据量: {len(df)} 行 × {len(df.columns)} 列")</span></div>
+<div class="code-line"><span class="line-number">785</span><span class="line-code">    print("\n生成报表...")</span></div>
+<div class="code-line"><span class="line-number">786</span><span class="line-code">    generate_spc_report(df)</span></div>
+<div class="code-line"><span class="line-number">787</span><span class="line-code">    generate_yield_report(df)</span></div>
+<div class="code-line"><span class="line-number">788</span><span class="line-code">    generate_optimization_report(df)</span></div>
+<div class="code-line"><span class="line-number">789</span><span class="line-code">    generate_equipment_report(df)</span></div>
+<div class="code-line"><span class="line-number">790</span><span class="line-code">    generate_wip_report(df)</span></div>
+<div class="code-line"><span class="line-number">791</span><span class="line-code">    generate_cost_report(df)</span></div>
+<div class="code-line"><span class="line-number">806</span><span class="line-code">if __name__ == "__main__":</span></div>
+<div class="code-line"><span class="line-number">807</span><span class="line-code">    main()</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_reports.py 第642-807行：成本分析 + main()主流程</div>
+        <strong>第646-647行：</strong>获取当前良率和优化后良率。<code>optimized_yield = 0.710</code> 是硬编码的Pareto优化结果（来自optimize.py的输出）。<br>
+        <strong>第654-656行：</strong>成本计算。<code>(1 - overall_yield)</code> 是废品率。废品率 × 总晶圆数 × 单片成本 = 良率损失金额。<code>savings</code> 是优化前后的差额。<br>
+        <strong>第775-791行：</strong>main()主流程。顺序调用6个报表生成函数，每个函数接收同一个DataFrame。<br>
+        <strong>第786行：</strong><code>"=" * 70</code> 字符串重复操作，生成70个等号组成的分隔线。<br>
+        <strong>第806-807行：</strong><code>if __name__ == "__main__":</code> Python标准入口。当脚本被直接运行时<code>__name__</code>等于<code>"__main__"</code>，被import时不等于。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>字符串重复</strong>：<code>"=" * 70</code> 生成70个等号。常用于打印分隔线</li>
+            <li><strong>len(df)</strong>：返回DataFrame的行数。<code>len(df.columns)</code> 返回列数</li>
+            <li><strong>f-string格式化</strong>：<code>f"{len(df)} 行 × {len(df.columns)} 列"</code> 在字符串中嵌入表达式</li>
+            <li><strong>if __name__ == "__main__"</strong>：Python模块入口保护。直接运行脚本时执行main()，被其他文件import时不执行</li>
+            <li><strong>硬编码常量</strong>：<code>optimized_yield = 0.710</code> 和 <code>wafer_cost = 1000</code> 是假设值。工业场景应从配置文件或数据库读取</li>
+        </ul>
+    </div>
+    <div class="logic-flow">
+        <h5>6类报表生成流程</h5>
+        <ol>
+            <li><strong>SPC报表</strong>：计算Cpk/合格率 → 判断过程能力是否充足 → 生成建议</li>
+            <li><strong>良率报表</strong>：按产品/技术节点分组统计 → 缺陷分析 → 识别最弱产品线</li>
+            <li><strong>工艺优化报表</strong>：展示当前工艺窗口 → 对比Pareto优化结果 → 给出策略建议</li>
+            <li><strong>设备报表</strong>：统计各设备使用频率 → 识别负载均衡问题</li>
+            <li><strong>WIP报表</strong>：批次/晶圆统计 → 识别瓶颈工序</li>
+            <li><strong>成本报表</strong>：计算良率损失金额 → 量化优化收益 → 投资回报分析</li>
+        </ol>
+    </div>
+</div>
+
+<!-- ================================================================ -->
+<!-- generate_dashboard.py 代码详解 -->
+<!-- ================================================================ -->
+<div class="section" id="dash-overview">
+    <div class="section-header">
+        <h2><span class="badge">generate_dashboard.py</span>动态Dashboard概览</h2>
+    </div>
+    <div class="file-overview">
+        <h4>文件职责</h4>
+        <p>动态Dashboard生成系统。与generate_reports.py的区别：(1) 生成单个HTML文件，通过JavaScript按钮切换视图（而非6个独立文件）；(2) 从optimize_results.json读取优化结果（而非硬编码）；(3) 指标计算函数独立封装，便于复用。整体架构更模块化。</p>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_dashboard.py 第1-14行：导入与路径常量</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">1</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">2</span><span class="line-code">动态报表生成系统</span></div>
+<div class="code-line"><span class="line-number">3</span><span class="line-code">从模型运行结果中实时读取数据，生成 dashboard.html</span></div>
+<div class="code-line"><span class="line-number">4</span><span class="line-code">"""</span></div>
+<div class="code-line"><span class="line-number">5</span><span class="line-code"></span></div>
+<div class="code-line"><span class="line-number">6</span><span class="line-code">import os</span></div>
+<div class="code-line"><span class="line-number">7</span><span class="line-code">import json</span></div>
+<div class="code-line"><span class="line-number">8</span><span class="line-code">import pandas as pd</span></div>
+<div class="code-line"><span class="line-number">9</span><span class="line-code">import numpy as np</span></div>
+<div class="code-line"><span class="line-number">10</span><span class="line-code">from datetime import datetime</span></div>
+<div class="code-line"><span class="line-number">11</span><span class="line-code"></span></div>
+<div class="code-line"><span class="line-number">12</span><span class="line-code">DATA = "data"</span></div>
+<div class="code-line"><span class="line-number">13</span><span class="line-code">RESULTS = "results"</span></div>
+<div class="code-line"><span class="line-number">14</span><span class="line-code">REPORTS = "reports"</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_dashboard.py 第1-14行：导入与路径常量</div>
+        <strong>第6-10行：</strong>导入依赖。与generate_reports.py相比，多了<code>json</code>（读取优化结果），少了<code>matplotlib</code>和<code>scipy</code>（不需要绘图和统计检验）。<br>
+        <strong>第12-14行：</strong>三个路径常量。比generate_reports.py多了<code>RESULTS</code>目录（存放optimize.py的输出JSON）。
+    </div>
+</div>
+</div>
+
+<div class="section" id="dash-load">
+    <div class="section-header">
+        <h2><span class="badge">generate_dashboard.py</span>load_data() 数据加载</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_dashboard.py 第17-35行：数据加载函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">17</span><span class="line-code">def load_data():</span></div>
+<div class="code-line"><span class="line-number">18</span><span class="line-code">    """加载所有数据源"""</span></div>
+<div class="code-line"><span class="line-number">19</span><span class="line-code">    print("加载数据...")</span></div>
+<div class="code-line"><span class="line-number">20</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">21</span><span class="line-code">    # 1. 加载原始数据</span></div>
+<div class="code-line"><span class="line-number">22</span><span class="line-code">    df = pd.read_csv(os.path.join(DATA, "semiconductor_yield_forecasting_data.csv"))</span></div>
+<div class="code-line"><span class="line-number">23</span><span class="line-code">    print(f"  ✓ 原始数据: {len(df)} 行")</span></div>
+<div class="code-line"><span class="line-number">24</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">25</span><span class="line-code">    # 2. 加载优化结果（如果存在）</span></div>
+<div class="code-line"><span class="line-number">26</span><span class="line-code">    optimize_results = None</span></div>
+<div class="code-line"><span class="line-number">27</span><span class="line-code">    results_path = os.path.join(RESULTS, "optimize_results.json")</span></div>
+<div class="code-line"><span class="line-number">28</span><span class="line-code">    if os.path.exists(results_path):</span></div>
+<div class="code-line"><span class="line-number">29</span><span class="line-code">        with open(results_path, 'r', encoding='utf-8') as f:</span></div>
+<div class="code-line"><span class="line-number">30</span><span class="line-code">            optimize_results = json.load(f)</span></div>
+<div class="code-line"><span class="line-number">31</span><span class="line-code">        print(f"  ✓ 优化结果: 已加载")</span></div>
+<div class="code-line"><span class="line-number">32</span><span class="line-code">    else:</span></div>
+<div class="code-line"><span class="line-number">33</span><span class="line-code">        print(f"  ⚠ 优化结果: 未找到（请先运行 python optimize.py）")</span></div>
+<div class="code-line"><span class="line-number">34</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">35</span><span class="line-code">    return df, optimize_results</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_dashboard.py 第17-35行：数据加载函数</div>
+        <strong>第17-35行：</strong>load_data() 加载两个数据源：原始CSV和优化结果JSON。<br>
+        <strong>第22行：</strong>加载原始数据。与main.py/spc_analysis.py相同的CSV文件。<br>
+        <strong>第26行：</strong><code>optimize_results = None</code> 初始化为None，表示尚未加载。<br>
+        <strong>第28行：</strong><code>os.path.exists(results_path)</code> 检查文件是否存在。这是防御性编程——optimize.py可能还没运行过。<br>
+        <strong>第29-30行：</strong><code>json.load(f)</code> 从文件对象读取JSON并反序列化为Python字典。与<code>json.loads(string)</code>不同，<code>json.load(file)</code>直接从文件读取。<br>
+        <strong>第35行：</strong>返回元组<code>(df, optimize_results)</code>。Python函数可以返回多个值（实际是返回元组，调用方用元组解包接收）。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>os.path.exists(path)</strong>：检查路径是否存在，返回bool。不区分文件/目录</li>
+            <li><strong>json.load(file_obj)</strong>：从文件对象读取JSON。json.loads(string)从字符串读取</li>
+            <li><strong>with open(path, 'r', encoding='utf-8') as f:</strong>：以只读模式打开文本文件，指定UTF-8编码</li>
+            <li><strong>返回多值</strong>：<code>return df, optimize_results</code> 实际返回元组。调用方<code>a, b = load_data()</code> 解包</li>
+            <li><strong>None作为默认值</strong>：<code>optimize_results = None</code> 表示"无数据"。调用方需用<code>if optimize_results:</code> 判断</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>为什么需要检查JSON是否存在？</h5>
+        <p>Dashboard可以在optimize.py运行之前或之后生成。如果JSON不存在，Dashboard使用硬编码的默认值（第186-188行）继续渲染，保证页面不报错。这是"优雅降级"设计模式。</p>
+    </div>
+</div>
+
+<div class="section" id="dash-metrics">
+    <div class="section-header">
+        <h2><span class="badge">generate_dashboard.py</span>指标计算函数</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_dashboard.py 第38-173行：5个指标计算函数</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">38</span><span class="line-code">def calculate_spc_metrics(df):</span></div>
+<div class="code-line"><span class="line-number">39</span><span class="line-code">    """计算 SPC 指标"""</span></div>
+<div class="code-line"><span class="line-number">40</span><span class="line-code">    key_params = ['critical_dimension', 'oxide_thickness', 'vth']</span></div>
+<div class="code-line"><span class="line-number">41</span><span class="line-code">    spec_limits = {</span></div>
+<div class="code-line"><span class="line-number">42</span><span class="line-code">        'critical_dimension': {'LSL': 15.0, 'USL': 35.0, 'target': 25.0},</span></div>
+<div class="code-line"><span class="line-number">43</span><span class="line-code">        'oxide_thickness': {'LSL': 45.0, 'USL': 70.0, 'target': 57.5},</span></div>
+<div class="code-line"><span class="line-number">44</span><span class="line-code">        'vth': {'LSL': 0.4, 'USL': 0.9, 'target': 0.65}</span></div>
+<div class="code-line"><span class="line-number">45</span><span class="line-code">    }</span></div>
+<div class="code-line"><span class="line-number">46</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">47</span><span class="line-code">    spc_data = []</span></div>
+<div class="code-line"><span class="line-number">48</span><span class="line-code">    for param in key_params:</span></div>
+<div class="code-line"><span class="line-number">49</span><span class="line-code">        values = df[param].values</span></div>
+<div class="code-line"><span class="line-number">50</span><span class="line-code">        mean_val = np.mean(values)</span></div>
+<div class="code-line"><span class="line-number">51</span><span class="line-code">        std_val = np.std(values, ddof=1)</span></div>
+<div class="code-line"><span class="line-number">52</span><span class="line-code">        usl = spec_limits[param]['USL']</span></div>
+<div class="code-line"><span class="line-number">53</span><span class="line-code">        lsl = spec_limits[param]['LSL']</span></div>
+<div class="code-line"><span class="line-number">54</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">55</span><span class="line-code">        cpu = (usl - mean_val) / (3 * std_val)</span></div>
+<div class="code-line"><span class="line-number">56</span><span class="line-code">        cpl = (mean_val - lsl) / (3 * std_val)</span></div>
+<div class="code-line"><span class="line-number">57</span><span class="line-code">        cpk = min(cpu, cpl)</span></div>
+<div class="code-line"><span class="line-number">58</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">59</span><span class="line-code">        in_spec = np.sum((values >= lsl) & (values <= usl))</span></div>
+<div class="code-line"><span class="line-number">60</span><span class="line-code">        yield_pct = in_spec / len(values) * 100</span></div>
+<div class="code-line"><span class="line-number">61</span><span class="line-code">        </span></div>
+<div class="code-line"><span class="line-number">62</span><span class="line-code">        spc_data.append({</span></div>
+<div class="code-line"><span class="line-number">63</span><span class="line-code">            'param': param, 'mean': mean_val, 'std': std_val,</span></div>
+<div class="code-line"><span class="line-number">64</span><span class="line-code">            'cpk': cpk, 'yield': yield_pct, 'usl': usl, 'lsl': lsl</span></div>
+<div class="code-line"><span class="line-number">65</span><span class="line-code">        })</span></div>
+<div class="code-line"><span class="line-number">66</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">67</span><span class="line-code">    return spc_data</span></div>
+<div class="code-line"><span class="line-number">75</span><span class="line-code">def calculate_yield_metrics(df):</span></div>
+<div class="code-line"><span class="line-number">76</span><span class="line-code">    """计算良率指标"""</span></div>
+<div class="code-line"><span class="line-number">77</span><span class="line-code">    overall_yield = df['yield'].mean() * 100</span></div>
+<div class="code-line"><span class="line-number">78</span><span class="line-code">    yield_std = df['yield'].std() * 100</span></div>
+<div class="code-line"><span class="line-number">80</span><span class="line-code">    # 按产品类型统计</span></div>
+<div class="code-line"><span class="line-number">81</span><span class="line-code">    yield_by_product = df.groupby('product_type')['yield'].agg(['mean', 'std', 'count'])</span></div>
+<div class="code-line"><span class="line-number">82</span><span class="line-code">    yield_by_product.columns = ['avg_yield', 'std_yield', 'count']</span></div>
+<div class="code-line"><span class="line-number">83</span><span class="line-code">    yield_by_product['avg_yield'] *= 100</span></div>
+<div class="code-line"><span class="line-number">84</span><span class="line-code">    yield_by_product['std_yield'] *= 100</span></div>
+<div class="code-line"><span class="line-number">92</span><span class="line-code">    defect_90th = df['defect_count'].quantile(0.9)</span></div>
+<div class="code-line"><span class="line-number">93</span><span class="line-code">    high_defect_count = len(df[df['defect_count'] > defect_90th])</span></div>
+<div class="code-line"><span class="line-number">112</span><span class="line-code">def calculate_equipment_metrics(df):</span></div>
+<div class="code-line"><span class="line-number">113</span><span class="line-code">    """计算设备指标"""</span></div>
+<div class="code-line"><span class="line-number">114</span><span class="line-code">    equipment_cols = ['etch_tool', 'litho_tool', 'deposition_tool', 'implant_tool']</span></div>
+<div class="code-line"><span class="line-number">115</span><span class="line-code">    equipment_data = {}</span></div>
+<div class="code-line"><span class="line-number">116</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">117</span><span class="line-code">    for col in equipment_cols:</span></div>
+<div class="code-line"><span class="line-number">118</span><span class="line-code">        stats = df[col].value_counts()</span></div>
+<div class="code-line"><span class="line-number">119</span><span class="line-code">        equipment_data[col] = []</span></div>
+<div class="code-line"><span class="line-number">120</span><span class="line-code">        for equip, count in stats.items():</span></div>
+<div class="code-line"><span class="line-number">121</span><span class="line-code">            pct = count / len(df) * 100</span></div>
+<div class="code-line"><span class="line-number">122</span><span class="line-code">            equipment_data[col].append({</span></div>
+<div class="code-line"><span class="line-number">123</span><span class="line-code">                'name': equip, 'count': count, 'pct': pct</span></div>
+<div class="code-line"><span class="line-number">124</span><span class="line-code">            })</span></div>
+<div class="code-line"><span class="line-number">131</span><span class="line-code">def calculate_wip_metrics(df):</span></div>
+<div class="code-line"><span class="line-number">132</span><span class="line-code">    """计算 WIP 指标"""</span></div>
+<div class="code-line"><span class="line-number">133</span><span class="line-code">    lot_stats = df.groupby('lot_id').agg({</span></div>
+<div class="code-line"><span class="line-number">134</span><span class="line-code">        'wafer_id': 'count',</span></div>
+<div class="code-line"><span class="line-number">135</span><span class="line-code">        'yield': 'mean',</span></div>
+<div class="code-line"><span class="line-number">136</span><span class="line-code">        'process_date': 'first'</span></div>
+<div class="code-line"><span class="line-number">137</span><span class="line-code">    }).rename(columns={'wafer_id': 'wafer_count'})</span></div>
+<div class="code-line"><span class="line-number">147</span><span class="line-code">def calculate_cost_metrics(df, optimized_yield):</span></div>
+<div class="code-line"><span class="line-number">148</span><span class="line-code">    """计算成本指标"""</span></div>
+<div class="code-line"><span class="line-number">149</span><span class="line-code">    overall_yield = df['yield'].mean()</span></div>
+<div class="code-line"><span class="line-number">150</span><span class="line-code">    wafer_cost = 1000</span></div>
+<div class="code-line"><span class="line-number">151</span><span class="line-code">    total_wafers = len(df)</span></div>
+<div class="code-line"><span class="line-number">152</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">153</span><span class="line-code">    current_loss = (1 - overall_yield) * total_wafers * wafer_cost</span></div>
+<div class="code-line"><span class="line-number">154</span><span class="line-code">    optimized_loss = (1 - optimized_yield) * total_wafers * wafer_cost</span></div>
+<div class="code-line"><span class="line-number">155</span><span class="line-code">    savings = current_loss - optimized_loss</span></div>
+<div class="code-line"><span class="line-number">156</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">157</span><span class="line-code">    current_scrap = int((1 - overall_yield) * total_wafers)</span></div>
+<div class="code-line"><span class="line-number">158</span><span class="line-code">    optimized_scrap = int((1 - optimized_yield) * total_wafers)</span></div>
+<div class="code-line"><span class="line-number">159</span><span class="line-code">    scrap_reduction = current_scrap - optimized_scrap</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_dashboard.py 第38-173行：5个指标计算函数</div>
+        <strong>第38-67行：</strong>calculate_spc_metrics() 与generate_reports.py中的计算逻辑完全相同，但独立封装为函数。返回字典列表。<br>
+        <strong>第75-109行：</strong>calculate_yield_metrics() 计算良率指标。比generate_reports.py多了<code>defect_90th</code>（第90百分位缺陷数）和<code>high_defect_count</code>（高缺陷批次数）。<br>
+        <strong>第92行：</strong><code>df['defect_count'].quantile(0.9)</code> 计算第90百分位数（即90%的数据小于此值）。用于识别"Top 10%高缺陷批次"。<br>
+        <strong>第93行：</strong><code>df[df['defect_count'] > defect_90th]</code> 布尔索引筛选高缺陷批次。<code>len()</code> 计算行数。<br>
+        <strong>第112-128行：</strong>calculate_equipment_metrics() 统计设备使用频率。<code>df[col].value_counts()</code> 返回按频次降序排列的Series。<code>stats.items()</code> 遍历(index, value)对。<br>
+        <strong>第120行：</strong><code>stats.items()</code> 对Series来说，items()返回(index, value)对。对DataFrame来说返回(column, Series)对。<br>
+        <strong>第131-144行：</strong>calculate_wip_metrics() 计算WIP指标。<code>groupby('lot_id').agg({...})</code> 对不同列使用不同聚合函数。<code>.rename(columns={...})</code> 重命名列。<br>
+        <strong>第133-137行：</strong>字典形式agg：<code>'wafer_id': 'count'</code> 计数，<code>'yield': 'mean'</code> 求均值，<code>'process_date': 'first'</code> 取第一个日期。<br>
+        <strong>第147-173行：</strong>calculate_cost_metrics() 接受额外参数<code>optimized_yield</code>（来自optimize.py的结果）。计算当前/优化后的损失金额和废品数量。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>Series.quantile(q)</strong>：计算分位数。q=0.9表示第90百分位</li>
+            <li><strong>Series.value_counts()</strong>：统计每个值出现的次数，返回降序Series</li>
+            <li><strong>Series.items()</strong>：迭代(index, value)对。类似dict.items()</li>
+            <li><strong>df.groupby().agg({col: func, ...})</strong>：对不同列使用不同聚合函数。字典键是列名，值是函数名</li>
+            <li><strong>df.rename(columns={old: new})</strong>：重命名列。返回新DataFrame（不修改原对象）</li>
+            <li><strong>int(float_value)</strong>：截断取整（向零方向）。<code>int(3.7)</code> → 3，<code>int(-3.7)</code> → -3</li>
+            <li><strong>函数参数传递</strong>：<code>calculate_cost_metrics(df, optimized_yield)</code> 第二个参数来自外部，实现数据依赖注入</li>
+        </ul>
+    </div>
+    <div class="logic-flow">
+        <h5>5个指标计算函数的数据流</h5>
+        <ol>
+            <li><strong>calculate_spc_metrics(df)</strong> → 返回字典列表，每个字典包含param/mean/std/cpk/yield等键</li>
+            <li><strong>calculate_yield_metrics(df)</strong> → 返回字典，包含overall_yield/yield_by_product/yield_by_node等</li>
+            <li><strong>calculate_equipment_metrics(df)</strong> → 返回嵌套字典：{设备类型: [{name, count, pct}, ...]}</li>
+            <li><strong>calculate_wip_metrics(df)</strong> → 返回字典，包含total_lots/total_wafers/lot_details等</li>
+            <li><strong>calculate_cost_metrics(df, optimized_yield)</strong> → 返回字典，包含current_loss/optimized_loss/savings等</li>
+        </ol>
+    </div>
+</div>
+
+<div class="section" id="dash-html">
+    <div class="section-header">
+        <h2><span class="badge">generate_dashboard.py</span>generate_html() 与 main()</h2>
+    </div>
+
+    <div class="code-section">
+<div class="code-block">
+        <div class="code-header">generate_dashboard.py 第176-982行：HTML生成与主流程</div>
+        <div class="code-content">
+<div class="code-line"><span class="line-number">176</span><span class="line-code">def generate_html(spc_data, yield_metrics, equipment_data, wip_metrics, cost_metrics, optimize_results):</span></div>
+<div class="code-line"><span class="line-number">177</span><span class="line-code">    """生成 HTML"""</span></div>
+<div class="code-line"><span class="line-number">178</span><span class="line-code">    current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')</span></div>
+<div class="code-line"><span class="line-number">179</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">180</span><span class="line-code">    # 获取优化结果</span></div>
+<div class="code-line"><span class="line-number">181</span><span class="line-code">    if optimize_results:</span></div>
+<div class="code-line"><span class="line-number">182</span><span class="line-code">        pareto_yield = optimize_results['pareto_top5'][0]['yield']</span></div>
+<div class="code-line"><span class="line-number">183</span><span class="line-code">        pareto_params = optimize_results['pareto_top5'][0]['params']</span></div>
+<div class="code-line"><span class="line-number">184</span><span class="line-code">        pareto_cpk = optimize_results['pareto_top5'][0]['cpk_detail']</span></div>
+<div class="code-line"><span class="line-number">185</span><span class="line-code">    else:</span></div>
+<div class="code-line"><span class="line-number">186</span><span class="line-code">        pareto_yield = 0.710</span></div>
+<div class="code-line"><span class="line-number">187</span><span class="line-code">        pareto_params = {'critical_dimension': 21.078, 'oxide_thickness': 57.937, 'vth': 0.595}</span></div>
+<div class="code-line"><span class="line-number">188</span><span class="line-code">        pareto_cpk = {'critical_dimension': 1.19, 'oxide_thickness': 1.49, 'vth': 0.57}</span></div>
+<div class="code-line"><span class="line-number">189</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">190</span><span class="line-code">    html = f"""&lt;!DOCTYPE html&gt;</span></div>
+<div class="code-line"><span class="line-number">191</span><span class="line-code">...</span></div>
+<div class="code-line"><span class="line-number">424</span><span class="line-code">    &lt;div class="nav-bar"&gt;</span></div>
+<div class="code-line"><span class="line-number">425</span><span class="line-code">        &lt;div class="nav-title"&gt;📊 半导体制造实时报表系统&lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">426</span><span class="line-code">        &lt;div class="nav-buttons"&gt;</span></div>
+<div class="code-line"><span class="line-number">427</span><span class="line-code">            &lt;button class="nav-btn active" onclick="showReport('spc')"&gt;SPC 监控&lt;/button&gt;</span></div>
+<div class="code-line"><span class="line-number">428</span><span class="line-code">            &lt;button class="nav-btn" onclick="showReport('yield')"&gt;良率分析&lt;/button&gt;</span></div>
+<div class="code-line"><span class="line-number">429</span><span class="line-code">            ...</span></div>
+<div class="code-line"><span class="line-number">434</span><span class="line-code">        &lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">435</span><span class="line-code">    &lt;/div&gt;</span></div>
+<div class="code-line"><span class="line-number">911</span><span class="line-code">    &lt;script&gt;</span></div>
+<div class="code-line"><span class="line-number">912</span><span class="line-code">        function showReport(reportId) {</span></div>
+<div class="code-line"><span class="line-number">913</span><span class="line-code">            const views = document.querySelectorAll('.report-view');</span></div>
+<div class="code-line"><span class="line-number">914</span><span class="line-code">            views.forEach(view =&gt; view.classList.remove('active'));</span></div>
+<div class="code-line"><span class="line-number">915</span><span class="line-code">            </span></div>
+<div class="code-line"><span class="line-number">916</span><span class="line-code">            const buttons = document.querySelectorAll('.nav-btn');</span></div>
+<div class="code-line"><span class="line-number">917</span><span class="line-code">            buttons.forEach(btn =&gt; btn.classList.remove('active'));</span></div>
+<div class="code-line"><span class="line-number">918</span><span class="line-code">            </span></div>
+<div class="code-line"><span class="line-number">919</span><span class="line-code">            document.getElementById(reportId).classList.add('active');</span></div>
+<div class="code-line"><span class="line-number">920</span><span class="line-code">            event.target.classList.add('active');</span></div>
+<div class="code-line"><span class="line-number">921</span><span class="line-code">        }</span></div>
+<div class="code-line"><span class="line-number">922</span><span class="line-code">    &lt;/script&gt;</span></div>
+<div class="code-line"><span class="line-number">934</span><span class="line-code">def main():</span></div>
+<div class="code-line"><span class="line-number">935</span><span class="line-code">    print("=" * 70)</span></div>
+<div class="code-line"><span class="line-number">936</span><span class="line-code">    print("动态报表生成系统")</span></div>
+<div class="code-line"><span class="line-number">939</span><span class="line-code">    df, optimize_results = load_data()</span></div>
+<div class="code-line"><span class="line-number">943</span><span class="line-code">    spc_data = calculate_spc_metrics(df)</span></div>
+<div class="code-line"><span class="line-number">944</span><span class="line-code">    yield_metrics = calculate_yield_metrics(df)</span></div>
+<div class="code-line"><span class="line-number">945</span><span class="line-code">    equipment_data = calculate_equipment_metrics(df)</span></div>
+<div class="code-line"><span class="line-number">946</span><span class="line-code">    wip_metrics = calculate_wip_metrics(df)</span></div>
+<div class="code-line"><span class="line-number">947</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">957</span><span class="line-code">    if optimize_results:</span></div>
+<div class="code-line"><span class="line-number">958</span><span class="line-code">        optimized_yield = optimize_results['pareto_top5'][0]['yield']</span></div>
+<div class="code-line"><span class="line-number">959</span><span class="line-code">    else:</span></div>
+<div class="code-line"><span class="line-number">960</span><span class="line-code">        optimized_yield = 0.710</span></div>
+<div class="code-line"><span class="line-number">961</span><span class="line-code">    </span></div>
+<div class="code-line"><span class="line-number">962</span><span class="line-code">    cost_metrics = calculate_cost_metrics(df, optimized_yield)</span></div>
+<div class="code-line"><span class="line-number">966</span><span class="line-code">    html = generate_html(spc_data, yield_metrics, equipment_data, wip_metrics, cost_metrics, optimize_results)</span></div>
+<div class="code-line"><span class="line-number">969</span><span class="line-code">    output_path = os.path.join(REPORTS, "dashboard.html")</span></div>
+<div class="code-line"><span class="line-number">970</span><span class="line-code">    with open(output_path, 'w', encoding='utf-8') as f:</span></div>
+<div class="code-line"><span class="line-number">971</span><span class="line-code">        f.write(html)</span></div>
+<div class="code-line"><span class="line-number">981</span><span class="line-code">if __name__ == "__main__":</span></div>
+<div class="code-line"><span class="line-number">982</span><span class="line-code">    main()</span></div>
+        </div>
+    </div>
+<div class="line-explanation">
+<div class="explanation-header">generate_dashboard.py 第176-982行：HTML生成与主流程</div>
+        <strong>第176行：</strong>generate_html() 接受6个参数（5个指标字典 + 优化结果）。参数多说明函数职责重，可考虑拆分。<br>
+        <strong>第181-188行：</strong>优雅降级。如果optimize_results存在，从JSON中提取Pareto最优解；否则使用硬编码默认值。<code>optimize_results['pareto_top5'][0]</code> 取Pareto前沿中yield最高的解（已按yield降序排序）。<br>
+        <strong>第190-929行：</strong>HTML模板。与generate_reports.py类似，但所有6个报表视图都在同一个HTML中，通过CSS class控制显示/隐藏。<br>
+        <strong>第427-433行：</strong>导航按钮。<code>onclick="showReport('spc')"</code> 点击时调用JavaScript函数切换视图。<br>
+        <strong>第911-921行：</strong>JavaScript交互逻辑。<code>showReport(reportId)</code> 函数：先移除所有视图和按钮的active类，再给目标视图和当前按钮添加active类。<br>
+        <strong>第913行：</strong><code>document.querySelectorAll('.report-view')</code> 选择所有class为report-view的元素。<br>
+        <strong>第914行：</strong><code>views.forEach(view => view.classList.remove('active'))</code> 箭头函数遍历 NodeList，移除active类。<br>
+        <strong>第919行：</strong><code>document.getElementById(reportId).classList.add('active')</code> 显示目标视图。<br>
+        <strong>第920行：</strong><code>event.target</code> 获取触发事件的元素（被点击的按钮）。<code>classList.add('active')</code> 高亮当前按钮。<br>
+        <strong>第934-982行：</strong>main()主流程。顺序调用：load_data() → 5个calculate_*() → generate_html() → 写入文件。<br>
+        <strong>第939行：</strong><code>df, optimize_results = load_data()</code> 元组解包接收两个返回值。<br>
+        <strong>第966行：</strong>将所有指标字典传给generate_html()，生成完整HTML字符串。<br>
+        <strong>第969-971行：</strong>写入dashboard.html文件。
+    </div>
+</div>
+    <div class="python-syntax">
+        <h5>Python语法点</h5>
+        <ul>
+            <li><strong>字典嵌套访问</strong>：<code>optimize_results['pareto_top5'][0]['yield']</code> 先取列表，再取第一个元素，再取字典键</li>
+            <li><strong>CSS class切换</strong>：通过添加/移除'active'类控制元素显示/隐藏。这是前端常见的Tab切换模式</li>
+            <li><strong>JavaScript箭头函数</strong>：<code>view => view.classList.remove('active')</code> 匿名函数的简写</li>
+            <li><strong>document.querySelectorAll()</strong>：CSS选择器查询，返回NodeList（类数组对象）</li>
+            <li><strong>event.target</strong>：触发事件的DOM元素。在onclick处理器中自动可用</li>
+            <li><strong>元组解包</strong>：<code>a, b = func()</code> 将函数返回的元组拆分为多个变量</li>
+            <li><strong>函数参数过多</strong>：generate_html()有6个参数，是"代码异味"（code smell）。改进方案：用类封装相关数据和行为，或传入配置字典</li>
+        </ul>
+    </div>
+    <div class="business-note">
+        <h5>generate_reports.py vs generate_dashboard.py 对比</h5>
+        <p><strong>generate_reports.py</strong>：生成6个独立HTML文件，每个文件自包含。优点：文件小、加载快。缺点：切换报表需跳转页面。<br>
+        <strong>generate_dashboard.py</strong>：生成单个HTML文件，JavaScript切换视图。优点：单页应用体验、数据联动。缺点：文件大、首次加载慢。<br>
+        <strong>架构差异</strong>：Dashboard版将指标计算封装为独立函数（calculate_*），与HTML生成分离。这是"关注点分离"原则的体现，比reports版（计算和拼接混在一起）更易维护。</p>
+    </div>
+</div>
+
+</div><!-- end content -->
+</div><!-- end container -->
+
+<script>
+function toggleSection(el) {
+    el.classList.toggle('collapsed');
+    const items = el.nextElementSibling;
+    items.classList.toggle('collapsed');
+}
+function scrollToSection(id) {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    event.target.classList.add('active');
+}
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const toggle = document.querySelector('.sidebar-toggle');
+    const content = document.querySelector('.content');
+    sidebar.classList.toggle('collapsed');
+    toggle.classList.toggle('collapsed');
+    content.classList.toggle('expanded');
+    toggle.textContent = sidebar.classList.contains('collapsed') ? '' : '✕';
+}
+</script>
+</body>
+</html>

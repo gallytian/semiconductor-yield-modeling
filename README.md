@@ -66,29 +66,42 @@
 
 ```
 semiconductor-yield-modeling/
-├── main.py                 # 良率建模主程序（回归 + 分类 + SHAP 根因）
-├── spc_analysis.py         # SPC 过程控制（Xbar-R 控制图 + Cpk/Ppk）
-├── optimize.py             # DOE + 贝叶斯优化（工艺参数寻优）
-├── requirements.txt        # Python 依赖清单
-├── README.md               # 项目文档
+├── modeling/                          # 建模代码目录
+│   ├── main.py                        # 良率建模主程序（回归 + 分类 + SHAP 根因）
+│   ├── spc_analysis.py                # SPC 过程控制（Xbar-R 控制图 + Cpk/Ppk）
+│   └── optimize.py                    # DOE + 贝叶斯优化（工艺参数寻优）
 ├── data/
 │   └── semiconductor_yield_forecasting_data.csv   # 原始数据（1250×28）
-└── results/
-    ├── semiconductor_yield_analysis.html  # 数据分析报告（EDA）
-    ├── semiconductor_stats.json           # 统计指标汇总
-    ├── pred_vs_actual.png                 # 良率预测 vs 实际散点图
-    ├── topk_curve.png                     # Top-k 拦截覆盖率曲线
-    ├── shap_summary.png                   # SHAP 特征重要性图
-    ├── spc_xbar_r_critical_dimension.png  # CD 的 Xbar-R 控制图
-    ├── spc_xbar_r_oxide_thickness.png     # oxide 的 Xbar-R 控制图
-    ├── spc_xbar_r_vth.png                 # vth 的 Xbar-R 控制图
-    ├── capability_critical_dimension.png  # CD 过程能力直方图
-    ├── capability_oxide_thickness.png     # oxide 过程能力直方图
-    ├── capability_vth.png                 # vth 过程能力直方图
-    ├── spc_analysis.html                  # SPC 交互式分析报告
-    ├── bo_convergence.png                 # 贝叶斯优化收敛曲线
-    ├── response_surface.png               # 响应面图（CD × oxide）
-    └── optimize_results.json              # 优化结果
+├── reports/                           # 报表与可视化
+│   ├── figures/                       # 图表文件
+│   │   ├── pred_vs_actual.png         # 良率预测 vs 实际散点图
+│   │   ├── topk_curve.png             # Top-k 拦截覆盖率曲线
+│   │   ├── shap_summary.png           # SHAP 特征重要性图
+│   │   ├── spc_xbar_r_critical_dimension.png  # CD 的 Xbar-R 控制图
+│   │   ├── spc_xbar_r_oxide_thickness.png     # oxide 的 Xbar-R 控制图
+│   │   ├── spc_xbar_r_vth.png         # vth 的 Xbar-R 控制图
+│   │   ├── capability_critical_dimension.png  # CD 过程能力直方图
+│   │   ├── capability_oxide_thickness.png     # oxide 过程能力直方图
+│   │   ├── capability_vth.png         # vth 过程能力直方图
+│   │   ├── bo_convergence.png         # 贝叶斯优化收敛曲线
+│   │   └── response_surface.png       # 响应面图（CD × oxide）
+│   ├── dashboard.html                 # 综合仪表板（单屏切换）
+│   ├── spc_report.html                # SPC 实时监控报表
+│   ├── yield_report.html              # 良率分析报表
+│   ├── optimization_report.html       # 工艺优化报表
+│   ├── equipment_report.html          # 设备监控报表
+│   ├── wip_report.html                # WIP 在制品报表
+│   ├── cost_report.html               # 成本分析报表
+│   ├── project_report.html            # 项目总览报告
+│   ├── semiconductor_yield_analysis.html  # 数据分析报告（EDA）
+│   └── spc_analysis.html              # SPC 交互式分析报告
+├── results/                           # 结构化结果
+│   ├── semiconductor_stats.json       # 统计指标汇总
+│   └── optimize_results.json          # 优化结果
+├── generate_dashboard.py              # 生成综合仪表板
+├── generate_reports.py                # 生成各类报表
+├── requirements.txt                   # Python 依赖清单
+└── README.md                          # 项目文档
 ```
 
 ## 环境配置
@@ -124,7 +137,7 @@ imbalanced-learn>=0.11
 ### 步骤 1：良率建模与根因分析
 
 ```bash
-python main.py
+python modeling/main.py
 ```
 
 **功能**：
@@ -143,7 +156,7 @@ python main.py
 ### 步骤 2：SPC 过程控制
 
 ```bash
-python spc_analysis.py
+python modeling/spc_analysis.py
 ```
 
 **功能**：
@@ -161,7 +174,7 @@ python spc_analysis.py
 ### 步骤 3：工艺参数优化
 
 ```bash
-python optimize.py
+python modeling/optimize.py
 ```
 
 **功能**：

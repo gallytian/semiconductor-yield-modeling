@@ -27,10 +27,13 @@ from sklearn.metrics import (r2_score, mean_absolute_error, mean_squared_error,
 plt.rcParams["font.sans-serif"] = ["Microsoft YaHei", "SimHei", "DejaVu Sans"]
 plt.rcParams["axes.unicode_minus"] = False
 
-BASE = os.path.dirname(os.path.abspath(__file__))
+# 项目根目录（modeling/ 的父目录）
+BASE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(BASE, "data")
 RESULT = os.path.join(BASE, "results")
+FIGURES = os.path.join(BASE, "reports", "figures")
 os.makedirs(RESULT, exist_ok=True)
+os.makedirs(FIGURES, exist_ok=True)
 SEED = 42
 np.random.seed(SEED)
 
@@ -105,7 +108,7 @@ def regress(X, y, cut):
     ax.set_xlabel("实际良率"); ax.set_ylabel("预测良率")
     ax.set_title(f"{best} 良率预测 vs 实际（测试集 R²={r2_score(y_te, p):.3f}）")
     ax.legend()
-    fig.tight_layout(); fig.savefig(os.path.join(RESULT, "pred_vs_actual.png"), dpi=150)
+    fig.tight_layout(); fig.savefig(os.path.join(FIGURES, "pred_vs_actual.png"), dpi=150)
     plt.close(fig)
     return results, best
 
@@ -156,7 +159,7 @@ def classify(X, y, cut):
     ax.axhline(1.0, color="#B23A48", lw=0.8, ls=":")
     ax.set_xlabel("拦截批次比例 %"); ax.set_ylabel("低良率覆盖率")
     ax.set_title("Top-k 拦截覆盖率曲线"); ax.legend()
-    fig.tight_layout(); fig.savefig(os.path.join(RESULT, "topk_curve.png"), dpi=150)
+    fig.tight_layout(); fig.savefig(os.path.join(FIGURES, "topk_curve.png"), dpi=150)
     plt.close(fig)
     return clf, prob, yt
 
@@ -180,7 +183,7 @@ def root_cause(best_model, X, cut):
         fig, ax = plt.subplots(figsize=(9, 7))
         shap.summary_plot(sv, X_sample, show=False, max_display=15)
         plt.title("SHAP 特征重要性（良率回归）")
-        fig.savefig(os.path.join(RESULT, "shap_summary.png"), dpi=150, bbox_inches="tight")
+        fig.savefig(os.path.join(FIGURES, "shap_summary.png"), dpi=150, bbox_inches="tight")
         plt.close(fig)
 
         mean_abs = np.abs(sv).mean(axis=0)
@@ -226,7 +229,7 @@ def main():
           f"（随机基线 0.20，见 topk_curve.png）")
     print(f"  3) 根因 Top 参数: {', '.join(top_feats[:5])} → 纳入 FDC/SPC 监控")
     print(f"  4) 关键参数做 DOE + 贝叶斯优化（smart-process-optimizer 项目）找最优工艺窗口")
-    print(f"\n  图表已保存至: {RESULT}")
+    print(f"\n  图表已保存至: {FIGURES}")
 
 
 if __name__ == "__main__":

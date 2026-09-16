@@ -14,15 +14,128 @@
    0.838
   ]
  },
- "current_yield": 0.457,
- "lhs_best": 0.703,
- "random_best": 0.7,
- "bo_best": 0.702,
- "bo_best_params": {
-  "critical_dimension": 17.8,
-  "oxide_thickness": 63.732,
-  "vth": 0.452
+ "cpk_targets": {
+  "critical_dimension": 1.33,
+  "oxide_thickness": 1.33,
+  "vth": 0.8
  },
- "bo_iters": 38,
- "efficiency": 24.0
+ "current_yield": 0.457,
+ "current_cpk": {
+  "critical_dimension": 1.89,
+  "oxide_thickness": 1.48,
+  "vth": 0.86
+ },
+ "lhs_best_yield": 0.319,
+ "lhs_best_cpk": {
+  "critical_dimension": 1.49,
+  "oxide_thickness": 1.38,
+  "vth": 0.71
+ },
+ "random_best_yield": 0.325,
+ "random_best_cpk": {
+  "critical_dimension": 1.55,
+  "oxide_thickness": 1.36,
+  "vth": 0.78
+ },
+ "bo_best_yield": 0.548,
+ "bo_best_cpk": {
+  "critical_dimension": 1.52,
+  "oxide_thickness": 1.35,
+  "vth": 0.76
+ },
+ "bo_best_params": {
+  "critical_dimension": 22.747,
+  "oxide_thickness": 55.885,
+  "vth": 0.673
+ },
+ "pareto_front_size": 20,
+ "pareto_best_yield": 0.71,
+ "pareto_best_cpk": {
+  "critical_dimension": 1.19,
+  "oxide_thickness": 1.49,
+  "vth": 0.57
+ },
+ "pareto_best_params": {
+  "critical_dimension": 21.078,
+  "oxide_thickness": 57.937,
+  "vth": 0.595
+ },
+ "pareto_top5": [
+  {
+   "yield": 0.71,
+   "min_cpk": 0.57,
+   "cpk_detail": {
+    "critical_dimension": 1.19,
+    "oxide_thickness": 1.49,
+    "vth": 0.57
+   },
+   "params": {
+    "critical_dimension": 21.078,
+    "oxide_thickness": 57.937,
+    "vth": 0.595
+   }
+  },
+  {
+   "yield": 0.71,
+   "min_cpk": 0.58,
+   "cpk_detail": {
+    "critical_dimension": 1.13,
+    "oxide_thickness": 1.39,
+    "vth": 0.58
+   },
+   "params": {
+    "critical_dimension": 20.751,
+    "oxide_thickness": 58.74,
+    "vth": 0.598
+   }
+  },
+  {
+   "yield": 0.704,
+   "min_cpk": 0.59,
+   "cpk_detail": {
+    "critical_dimension": 1.21,
+    "oxide_thickness": 0.74,
+    "vth": 0.59
+   },
+   "params": {
+    "critical_dimension": 21.142,
+    "oxide_thickness": 64.058,
+    "vth": 0.599
+   }
+  },
+  {
+   "yield": 0.697,
+   "min_cpk": 0.59,
+   "cpk_detail": {
+    "critical_dimension": 0.8,
+    "oxide_thickness": 1.06,
+    "vth": 0.59
+   },
+   "params": {
+    "critical_dimension": 19.07,
+    "oxide_thickness": 61.465,
+    "vth": 0.599
+   }
+  },
+  {
+   "yield": 0.678,
+   "min_cpk": 0.59,
+   "cpk_detail": {
+    "critical_dimension": 0.79,
+    "oxide_thickness": 1.31,
+    "vth": 0.59
+   },
+   "params": {
+    "critical_dimension": 19.038,
+    "oxide_thickness": 59.381,
+    "vth": 0.599
+   }
+  }
+ ],
+ "yield_target_met": true,
+ "cpk_targets_met": {
+  "critical_dimension": false,
+  "oxide_thickness": true,
+  "vth": false
+ }
 }
